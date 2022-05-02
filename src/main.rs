@@ -165,32 +165,72 @@ const ROOK_MOVESET: [CanMove; 6] = [
     CanMove::Free(Move::Beam((0, -1), 7)),
     CanMove::Conditional(&|id, board, history| {
         board.get_pos(id).and_then(|op| {
-            let idx = op.left(id.sign()).left(id.sign());
-            board.get_id(&idx).and_then(|other| {
-                if other.matches(id)
-                    && other.piece() == AllPieces::King
-                    && history.get_slice(id).is_none()
-                    && history.get_slice(&other).is_none()
-                {
-                    return Some(Move::Jump(-2, 0));
-                }
-                return None;
-            })
+            let idx1 = op.left(id.sign());
+            let idx2 = idx1.left(id.sign());
+            let idx3 = idx2.left(id.sign());
+            let idx4 = idx3.left(id.sign());
+            if board.get_id(&idx1).is_none() && board.get_id(&idx2).is_none() {
+                return board
+                    .get_id(&idx3)
+                    .and_then(|other| {
+                        if other.matches(id)
+                            && other.piece() == AllPieces::King
+                            && history.get_slice(id).is_none()
+                            && history.get_slice(&other).is_none()
+                        {
+                            return Some(Move::Jump(-2, 0));
+                        }
+                        return None;
+                    })
+                    .or_else(|| {
+                        board.get_id(&idx4).and_then(|other| {
+                            if other.matches(id)
+                                && other.piece() == AllPieces::King
+                                && history.get_slice(id).is_none()
+                                && history.get_slice(&other).is_none()
+                            {
+                                return Some(Move::Jump(-2, 0));
+                            }
+                            return None;
+                        })
+                    });
+            }
+            return None;
         })
     }),
     CanMove::Conditional(&|id, board, history| {
         board.get_pos(id).and_then(|op| {
-            let idx = op.right(id.sign()).right(id.sign());
-            board.get_id(&idx).and_then(|other| {
-                if other.matches(id)
-                    && other.piece() == AllPieces::King
-                    && history.get_slice(id).is_none()
-                    && history.get_slice(&other).is_none()
-                {
-                    return Some(Move::Jump(2, 0));
-                }
-                return None;
-            })
+            let idx1 = op.right(id.sign());
+            let idx2 = idx1.right(id.sign());
+            let idx3 = idx2.right(id.sign());
+            let idx4 = idx3.right(id.sign());
+            if board.get_id(&idx1).is_none() && board.get_id(&idx2).is_none() {
+                return board
+                    .get_id(&idx3)
+                    .and_then(|other| {
+                        if other.matches(id)
+                            && other.piece() == AllPieces::King
+                            && history.get_slice(id).is_none()
+                            && history.get_slice(&other).is_none()
+                        {
+                            return Some(Move::Jump(-2, 0));
+                        }
+                        return None;
+                    })
+                    .or_else(|| {
+                        board.get_id(&idx4).and_then(|other| {
+                            if other.matches(id)
+                                && other.piece() == AllPieces::King
+                                && history.get_slice(id).is_none()
+                                && history.get_slice(&other).is_none()
+                            {
+                                return Some(Move::Jump(2, 0));
+                            }
+                            return None;
+                        })
+                    });
+            }
+            return None;
         })
     }),
 ];
@@ -215,32 +255,72 @@ const KING_MOVESET: [CanMove; 10] = [
     CanMove::Free(Move::Beam((-1, -1), 1)),
     CanMove::Conditional(&|id, board, history| {
         board.get_pos(id).and_then(|op| {
-            let idx = op.left(id.sign()).left(id.sign());
-            board.get_id(&idx).and_then(|other| {
-                if other.matches(id)
-                    && other.piece() == AllPieces::Rook
-                    && history.get_slice(id).is_none()
-                    && history.get_slice(&other).is_none()
-                {
-                    return Some(Move::Jump(-2, 0));
-                }
-                return None;
-            })
+            let idx1 = op.left(id.sign());
+            let idx2 = idx1.left(id.sign());
+            let idx3 = idx2.left(id.sign());
+            let idx4 = idx3.left(id.sign());
+            if board.get_id(&idx1).is_none() && board.get_id(&idx2).is_none() {
+                return board
+                    .get_id(&idx3)
+                    .and_then(|other| {
+                        if other.matches(id)
+                            && other.piece() == AllPieces::Rook
+                            && history.get_slice(id).is_none()
+                            && history.get_slice(&other).is_none()
+                        {
+                            return Some(Move::Jump(-2, 0));
+                        }
+                        return None;
+                    })
+                    .or_else(|| {
+                        board.get_id(&idx4).and_then(|other| {
+                            if other.matches(id)
+                                && other.piece() == AllPieces::Rook
+                                && history.get_slice(id).is_none()
+                                && history.get_slice(&other).is_none()
+                            {
+                                return Some(Move::Jump(-2, 0));
+                            }
+                            return None;
+                        })
+                    });
+            }
+            return None;
         })
     }),
     CanMove::Conditional(&|id, board, history| {
         board.get_pos(id).and_then(|op| {
-            let idx = op.right(id.sign()).right(id.sign());
-            board.get_id(&idx).and_then(|other| {
-                if other.matches(id)
-                    && other.piece() == AllPieces::Rook
-                    && history.get_slice(id).is_none()
-                    && history.get_slice(&other).is_none()
-                {
-                    return Some(Move::Jump(2, 0));
-                }
-                return None;
-            })
+            let idx1 = op.right(id.sign());
+            let idx2 = idx1.right(id.sign());
+            let idx3 = idx2.right(id.sign());
+            let idx4 = idx3.right(id.sign());
+            if board.get_id(&idx1).is_none() && board.get_id(&idx2).is_none() {
+                return board
+                    .get_id(&idx3)
+                    .and_then(|other| {
+                        if other.matches(id)
+                            && other.piece() == AllPieces::Rook
+                            && history.get_slice(id).is_none()
+                            && history.get_slice(&other).is_none()
+                        {
+                            return Some(Move::Jump(-2, 0));
+                        }
+                        return None;
+                    })
+                    .or_else(|| {
+                        board.get_id(&idx4).and_then(|other| {
+                            if other.matches(id)
+                                && other.piece() == AllPieces::Rook
+                                && history.get_slice(id).is_none()
+                                && history.get_slice(&other).is_none()
+                            {
+                                return Some(Move::Jump(2, 0));
+                            }
+                            return None;
+                        })
+                    });
+            }
+            return None;
         })
     }),
 ];
@@ -706,7 +786,7 @@ fn main() {
     println!("");
     game.visualize_moves(my_pawn);
     println!("");
-    game.move_piece(my_pawn, &PiecePos(27));
+    game.move_piece_relative(my_pawn, &PiecePos(16));
     game.print();
     println!("");
     game.visualize_moves(my_pawn);
@@ -721,13 +801,35 @@ fn main() {
     println!("");
     game.visualize_moves(my_pawn);
     println!("");
-    game.visualize_moves(my_rook);
+    game.move_piece_relative(my_pawn, &PiecePos(7));
+    game.print();
     println!("");
     game.visualize_moves(my_knight);
     println!("");
+    game.move_piece_relative(my_knight, &PiecePos(15));
+    game.print();
+    println!("");
     game.visualize_moves(my_bishop);
     println!("");
+    game.move_piece_relative(my_bishop, &PiecePos(27));
+    game.print();
+    println!("");
     game.visualize_moves(my_queen);
+    game.move_piece_relative(my_queen, &PiecePos(8));
+    println!("");
+    game.print();
     println!("");
     game.visualize_moves(my_king);
+    println!("");
+    game.move_piece(my_king, &PiecePos(2));
+    game.move_piece(my_rook, &PiecePos(3));
+    game.print();
+    println!("");
+    game.visualize_moves(my_rook);
+    game.move_piece_relative(my_rook, &PiecePos(1));
+    println!("");
+    game.print();
+    println!("");
+    game.clear();
+    game.print();
 }
