@@ -43,7 +43,7 @@ enum CanCapture<'a> {
     None,
     Matching(usize),
     Opposing(usize),
-    Specific(&'a dyn Fn(&PieceId, &PieceId, &usize) -> bool),
+    Specific(&'a dyn Fn(&PieceId, &PieceId, &mut usize) -> bool),
     All,
 }
 
@@ -443,10 +443,7 @@ impl From<usize> for Piece {
 impl Piece {
     fn moveset(&self) -> &[CanMove<'static>] {
         let moveset = match self {
-            Piece::None => {
-                let moveset: &[CanMove<'static>] = &[];
-                moveset
-            }
+            Piece::None => &[],
             Piece::Pawn => &PAWN_MOVESET[..],
             Piece::Knight => &KNIGHT_MOVESET[..],
             Piece::Bishop => &BISHOP_MOVESET[..],
@@ -629,7 +626,7 @@ impl Board {
             (0..BOARD_SIZE - 1)
                 .collect::<Vec<usize>>()
                 .into_iter()
-                .filter(|v| ids.iter().any(|id| self.0[*v as usize] == id.i()))
+                .filter(|v| ids.iter().any(|id| self.0[*v] == id.i()))
                 .collect::<Vec<_>>(),
         )
     }
@@ -659,7 +656,7 @@ impl Board {
                 if id.piece() != Piece::None {
                     return Some(id);
                 }
-                None
+                return None;
             }
             None => None,
         }
@@ -670,13 +667,13 @@ impl Board {
             .get(&id.i())
             .and_then(|versions| {
                 versions.get(id.version()).and_then(|specific| {
-                    return Some(PiecePos(*specific as usize));
+                    return Some(PiecePos(*specific));
                 })
             })
             .or_else(|| {
                 for (idx, v) in self.0.iter().enumerate() {
                     if v == &id.i() {
-                        return Some(PiecePos(idx as usize));
+                        return Some(PiecePos(idx));
                     }
                 }
                 return None;
@@ -685,7 +682,7 @@ impl Board {
 
     fn set_square(&mut self, id: &PieceId, pos: &PiecePos) {
         if self.1.contains_key(&id.i()) {
-            self.1.get_mut(&id.i()).unwrap()[id.version()] = pos.u() as usize;
+            self.1.get_mut(&id.i()).unwrap()[id.version()] = pos.u();
         }
         self.0[pos.u()] = id.i();
     }
@@ -749,7 +746,7 @@ impl BoardSlice {
     fn visualize(&self, fill: isize) -> Board {
         let mut visual = Board::new([0; BOARD_SIZE]);
         for v in &self.0 {
-            visual.0[*v as usize] = fill;
+            visual.0[*v] = fill;
         }
         return visual;
     }
