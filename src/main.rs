@@ -1,8 +1,26 @@
 use std::collections::HashMap;
 
-struct Move(isize, isize, usize);
+struct MoveStep {
+    x: isize,
+    y: isize,
+}
+
+struct Move {
+    step: MoveStep,
+    max_steps: usize,
+}
 
 impl Move {
+    const fn new(step_x: isize, step_y: isize, max_steps: usize) -> Self {
+        Move {
+            step: MoveStep {
+                x: step_x,
+                y: step_y,
+            },
+            max_steps,
+        }
+    }
+
     fn calculate(
         &self,
         piece_id: &PieceId,
@@ -12,13 +30,13 @@ impl Move {
     ) -> Vec<usize> {
         let mut calculated = Vec::new();
         let (px, py): (isize, isize) = piece_pos.into();
-        let (x, y, max) = (self.0, self.1, self.2);
+        let MoveStep { x, y } = self.step;
         let mut mx = px as isize + x;
         let mut my = py as isize + y;
         let mut iters: usize = 0;
         let mut captured: usize = 0;
 
-        while iters < max && PiecePos::is_inbounds(mx, my) {
+        while iters < self.max_steps && PiecePos::is_inbounds(mx, my) {
             let from_xy = PiecePos::from((mx, my));
             match board.get_id(&from_xy) {
                 Some(p) => {
@@ -38,7 +56,6 @@ impl Move {
     }
 }
 
-#[derive(Clone, Copy)]
 enum CanCapture<'a> {
     None,
     Matching(usize),
@@ -71,10 +88,10 @@ enum CanMove<'a> {
 }
 
 const PAWN_MOVESET: [CanMove; 6] = [
-    CanMove::Free(Move(0, 1, 1), CanCapture::None),
+    CanMove::Free(Move::new(0, 1, 1), CanCapture::None),
     CanMove::Conditional(&|id, _, history| {
         if history.get_slice(id).is_none() {
-            return Some((Move(0, 1, 2), CanCapture::None));
+            return Some((Move::new(0, 1, 2), CanCapture::None));
         }
         return None;
     }),
@@ -83,7 +100,7 @@ const PAWN_MOVESET: [CanMove; 6] = [
             let idx = op.topleft(id.sign());
             board.get_id(&idx).and_then(|other| {
                 if other.opposes(id) {
-                    return Some((Move(-1, 1, 1), CanCapture::Opposing(1)));
+                    return Some((Move::new(-1, 1, 1), CanCapture::Opposing(1)));
                 }
                 return None;
             })
@@ -94,7 +111,7 @@ const PAWN_MOVESET: [CanMove; 6] = [
             let idx = op.topright(id.sign());
             board.get_id(&idx).and_then(|other| {
                 if other.opposes(id) {
-                    return Some((Move(1, 1, 1), CanCapture::Opposing(1)));
+                    return Some((Move::new(1, 1, 1), CanCapture::Opposing(1)));
                 }
                 return None;
             })
@@ -106,9 +123,9 @@ const PAWN_MOVESET: [CanMove; 6] = [
             board.get_id(&op_left).and_then(|other| {
                 if other.opposes(id) && other.piece() == Piece::Pawn {
                     return history.get_slice(&other).and_then(|prev| {
-                        prev.0.last().and_then(|last| {
+                        prev.inner().last().and_then(|last| {
                             if last == &op_left.bottom(other.sign()).bottom(other.sign()).u() {
-                                return Some((Move(-1, 1, 1), CanCapture::None));
+                                return Some((Move::new(-1, 1, 1), CanCapture::None));
                             } else {
                                 return None;
                             }
@@ -125,9 +142,9 @@ const PAWN_MOVESET: [CanMove; 6] = [
             board.get_id(&op_right).and_then(|other| {
                 if other.opposes(id) && other.piece() == Piece::Pawn {
                     return history.get_slice(&other).and_then(|prev| {
-                        prev.0.last().and_then(|last| {
+                        prev.inner().last().and_then(|last| {
                             if last == &op_right.bottom(other.sign()).bottom(other.sign()).u() {
-                                return Some((Move(1, 1, 1), CanCapture::None));
+                                return Some((Move::new(1, 1, 1), CanCapture::None));
                             } else {
                                 return None;
                             }
@@ -140,26 +157,26 @@ const PAWN_MOVESET: [CanMove; 6] = [
     }),
 ];
 const KNIGHT_MOVESET: [CanMove; 8] = [
-    CanMove::Free(Move(1, 2, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, 2, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(1, -2, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, -2, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(2, 1, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-2, 1, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(2, -1, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-2, -1, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, 2, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, 2, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, -2, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, -2, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(2, 1, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-2, 1, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(2, -1, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-2, -1, 1), CanCapture::Opposing(1)),
 ];
 const BISHOP_MOVESET: [CanMove; 4] = [
-    CanMove::Free(Move(1, 1, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, 1, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(1, -1, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, -1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, 1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, 1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, -1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, -1, BOARD_SIZE), CanCapture::Opposing(1)),
 ];
 const ROOK_MOVESET: [CanMove; 6] = [
-    CanMove::Free(Move(1, 0, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, 0, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(0, 1, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(0, -1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, 0, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, 0, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(0, 1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(0, -1, BOARD_SIZE), CanCapture::Opposing(1)),
     CanMove::Conditional(&|id, board, history| {
         board.get_pos(id).and_then(|op| {
             let idx1 = op.left(id.sign());
@@ -173,7 +190,7 @@ const ROOK_MOVESET: [CanMove; 6] = [
                         && history.get_slice(id).is_none()
                         && history.get_slice(&other).is_none()
                     {
-                        return Some((Move(distance, 0, 1), CanCapture::None));
+                        return Some((Move::new(distance, 0, 1), CanCapture::None));
                     }
                     return None;
                 }
@@ -200,7 +217,7 @@ const ROOK_MOVESET: [CanMove; 6] = [
                         && history.get_slice(id).is_none()
                         && history.get_slice(&other).is_none()
                     {
-                        return Some((Move(distance, 0, 1), CanCapture::None));
+                        return Some((Move::new(distance, 0, 1), CanCapture::None));
                     }
                     return None;
                 }
@@ -216,24 +233,24 @@ const ROOK_MOVESET: [CanMove; 6] = [
     }),
 ];
 const QUEEN_MOVESET: [CanMove; 8] = [
-    CanMove::Free(Move(1, 0, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, 0, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(0, 1, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(0, -1, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(1, 1, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, 1, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(1, -1, BOARD_SIZE), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, -1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, 0, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, 0, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(0, 1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(0, -1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, 1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, 1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, -1, BOARD_SIZE), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, -1, BOARD_SIZE), CanCapture::Opposing(1)),
 ];
 const KING_MOVESET: [CanMove; 10] = [
-    CanMove::Free(Move(1, 0, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, 0, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(0, 1, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(0, -1, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(1, 1, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, 1, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(1, -1, 1), CanCapture::Opposing(1)),
-    CanMove::Free(Move(-1, -1, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, 0, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, 0, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(0, 1, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(0, -1, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, 1, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, 1, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(1, -1, 1), CanCapture::Opposing(1)),
+    CanMove::Free(Move::new(-1, -1, 1), CanCapture::Opposing(1)),
     CanMove::Conditional(&|id, board, history| {
         board.get_pos(id).and_then(|op| {
             let idx1 = op.left(id.sign());
@@ -246,7 +263,7 @@ const KING_MOVESET: [CanMove; 10] = [
                     && history.get_slice(id).is_none()
                     && history.get_slice(&other).is_none()
                 {
-                    return Some((Move(-2, 0, 1), CanCapture::None));
+                    return Some((Move::new(-2, 0, 1), CanCapture::None));
                 }
                 return None;
             };
@@ -271,7 +288,7 @@ const KING_MOVESET: [CanMove; 10] = [
                     && history.get_slice(id).is_none()
                     && history.get_slice(&other).is_none()
                 {
-                    return Some((Move(2, 0, 1), CanCapture::None));
+                    return Some((Move::new(2, 0, 1), CanCapture::None));
                 }
                 return None;
             };
@@ -508,7 +525,6 @@ impl PieceId {
     }
 }
 
-#[derive(Debug)]
 struct PiecePos(usize);
 
 impl From<(isize, isize)> for PiecePos {
@@ -580,7 +596,10 @@ const COL_SIZE: usize = 8;
 const BOARD_SIZE: usize = ROW_SIZE * COL_SIZE;
 
 #[derive(Debug, Clone)]
-struct Board([isize; BOARD_SIZE], HashMap<isize, Vec<usize>>);
+struct Board {
+    state: [isize; BOARD_SIZE],
+    repeats: HashMap<isize, Vec<usize>>,
+}
 
 impl Board {
     fn new(initial_state: [isize; BOARD_SIZE]) -> Self {
@@ -602,12 +621,15 @@ impl Board {
                 None => (),
             }
         }
-        Board(initial_state, repeats)
+        Board {
+            state: initial_state,
+            repeats,
+        }
     }
 
     fn row(&self, row: usize) -> [isize; ROW_SIZE] {
         assert!(row < ROW_SIZE, "the board only has {ROW_SIZE} rows");
-        self.0[row * ROW_SIZE..row * ROW_SIZE + COL_SIZE]
+        self.state[row * ROW_SIZE..row * ROW_SIZE + COL_SIZE]
             .try_into()
             .expect("unexpected slice length")
     }
@@ -616,7 +638,7 @@ impl Board {
         assert!(col < COL_SIZE, "the board only has {COL_SIZE} columns");
         let mut array = [0; COL_SIZE];
         for u in 0..COL_SIZE {
-            array[u] = self.0[col + u * ROW_SIZE];
+            array[u] = self.state[col + u * ROW_SIZE];
         }
         array
     }
@@ -626,7 +648,7 @@ impl Board {
             (0..BOARD_SIZE - 1)
                 .collect::<Vec<usize>>()
                 .into_iter()
-                .filter(|v| ids.iter().any(|id| self.0[*v] == id.i()))
+                .filter(|v| ids.iter().any(|id| self.state[*v] == id.i()))
                 .collect::<Vec<_>>(),
         )
     }
@@ -636,8 +658,8 @@ impl Board {
         if u > BOARD_SIZE {
             return None;
         }
-        let id = self.0[u];
-        self.1
+        let id = self.state[u];
+        self.repeats
             .get(&id)
             .and_then(|repeats| {
                 for (version, existing_pos) in repeats.iter().enumerate() {
@@ -663,7 +685,7 @@ impl Board {
     }
 
     fn get_pos(&self, id: &PieceId) -> Option<PiecePos> {
-        self.1
+        self.repeats
             .get(&id.i())
             .and_then(|versions| {
                 versions.get(id.version()).and_then(|specific| {
@@ -671,7 +693,7 @@ impl Board {
                 })
             })
             .or_else(|| {
-                for (idx, v) in self.0.iter().enumerate() {
+                for (idx, v) in self.state.iter().enumerate() {
                     if v == &id.i() {
                         return Some(PiecePos(idx));
                     }
@@ -681,50 +703,54 @@ impl Board {
     }
 
     fn set_square(&mut self, id: &PieceId, pos: &PiecePos) {
-        if self.1.contains_key(&id.i()) {
-            self.1.get_mut(&id.i()).unwrap()[id.version()] = pos.u();
+        if self.repeats.contains_key(&id.i()) {
+            self.repeats.get_mut(&id.i()).unwrap()[id.version()] = pos.u();
         }
-        self.0[pos.u()] = id.i();
+        self.state[pos.u()] = id.i();
     }
 
     fn clear(&mut self) {
-        self.0 = [0; BOARD_SIZE];
-        self.1 = HashMap::new();
+        self.state = [0; BOARD_SIZE];
+        self.repeats = HashMap::new();
     }
 }
 
 #[derive(Debug)]
-struct History(HashMap<(isize, usize), BoardSlice>);
+struct History {
+    past: HashMap<(isize, usize), BoardSlice>,
+}
 
 impl History {
-    fn new(default: Option<HashMap<(isize, usize), BoardSlice>>) -> Self {
-        match default {
-            Some(n) => History(n),
-            None => History(HashMap::new()),
+    fn new(initial: Option<HashMap<(isize, usize), BoardSlice>>) -> Self {
+        match initial {
+            Some(past) => History { past },
+            None => History {
+                past: HashMap::new(),
+            },
         }
     }
 
     fn get_slice(&self, id: &PieceId) -> Option<&BoardSlice> {
-        self.0.get(&(id.i(), id.version()))
+        self.past.get(&(id.i(), id.version()))
     }
 
     fn push(&mut self, id: &PieceId, pos: &PiecePos) {
-        let old_slice = self.0.get(&(id.i(), id.version()));
+        let old_slice = self.past.get(&(id.i(), id.version()));
         match old_slice {
             Some(slice) => {
-                let mut new_slice = BoardSlice::new(Some(slice.0.to_vec()));
+                let mut new_slice = BoardSlice::new(Some(slice.inner().to_vec()));
                 new_slice.push(pos.u());
-                self.0.insert((id.i(), id.version()), new_slice);
+                self.past.insert((id.i(), id.version()), new_slice);
             }
             None => {
                 let new_slice = BoardSlice::new(Some(vec![pos.u()]));
-                self.0.insert((id.i(), id.version()), new_slice);
+                self.past.insert((id.i(), id.version()), new_slice);
             }
         }
     }
 
     fn clear(&mut self) {
-        self.0 = HashMap::new();
+        self.past = HashMap::new();
     }
 }
 
@@ -739,6 +765,10 @@ impl BoardSlice {
         }
     }
 
+    fn inner(&self) -> &Vec<usize> {
+        &self.0
+    }
+
     fn push(&mut self, pos: usize) {
         self.0.push(pos);
     }
@@ -746,7 +776,7 @@ impl BoardSlice {
     fn visualize(&self, fill: isize) -> Board {
         let mut visual = Board::new([0; BOARD_SIZE]);
         for v in &self.0 {
-            visual.0[*v] = fill;
+            visual.state[*v] = fill;
         }
         return visual;
     }
