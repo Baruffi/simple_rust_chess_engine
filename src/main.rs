@@ -67,14 +67,12 @@ enum CanCapture<'a, P> {
 impl<'a, P: Piece> CanCapture<'a, P> {
     fn check(&self, id: &PieceId<P>, other: &PieceId<P>, captured: &mut usize) -> bool {
         match self {
-            CanCapture::None => other.piece() == P::none(),
+            CanCapture::None => other.is_none(),
             CanCapture::Matching(max) => {
-                other.piece() == P::none()
-                    || (*captured < *max && (*captured += 1) == () && id.matches(other))
+                other.is_none() || (*captured < *max && (*captured += 1) == () && id.matches(other))
             }
             CanCapture::Opposing(max) => {
-                other.piece() == P::none()
-                    || (*captured < *max && (*captured += 1) == () && id.opposes(other))
+                other.is_none() || (*captured < *max && (*captured += 1) == () && id.opposes(other))
             }
             CanCapture::Specific(s) => s(id, other, captured),
             CanCapture::All => true,
@@ -98,12 +96,6 @@ enum Sign {
     None,
     Positive,
     Negative = -1,
-}
-
-impl Default for Sign {
-    fn default() -> Self {
-        Sign::None
-    }
 }
 
 impl From<isize> for Sign {
@@ -200,8 +192,12 @@ impl std::ops::Sub<Sign> for isize {
     }
 }
 
+trait Piece: Copy + std::convert::From<isize> + std::convert::Into<isize> + PartialEq {
+    fn none() -> Self;
+}
+
 trait PieceSet<'a> {
-    type PieceType;
+    type PieceType: Piece;
     fn moveset(&self, piece: &Self::PieceType) -> Option<&[CanMove<'a, Self::PieceType>]>;
     fn valid_slice(
         &self,
@@ -220,18 +216,6 @@ enum StandardPiece {
     Rook,
     Queen,
     King,
-}
-
-impl Default for StandardPiece {
-    fn default() -> Self {
-        StandardPiece::None
-    }
-}
-
-impl Piece for StandardPiece {
-    fn none() -> Self {
-        Self::None
-    }
 }
 
 impl From<StandardPiece> for isize {
@@ -260,6 +244,12 @@ impl From<isize> for StandardPiece {
             6 => Self::King,
             _ => panic!("unknown piece {}", i.abs()),
         }
+    }
+}
+
+impl Piece for StandardPiece {
+    fn none() -> Self {
+        Self::None
     }
 }
 
@@ -540,29 +530,6 @@ struct DynamicPieceSet<'a, T>(HashMap<T, Vec<CanMove<'a, T>>>)
 where
     T: std::hash::Hash + Eq;
 
-impl<'a, T> PieceSet<'a> for DynamicPieceSet<'a, T>
-where
-    T: Piece + std::hash::Hash + Eq,
-{
-    type PieceType = T;
-
-    fn moveset(&self, piece: &T) -> Option<&[CanMove<'a, Self::PieceType>]> {
-        if let Some(moveset) = self.0.get(piece) {
-            return Some(&moveset[..]);
-        }
-        return None;
-    }
-
-    fn valid_slice(
-        &self,
-        piece_id: &PieceId<T>,
-        board: &dyn Board<PieceType = T>,
-        history: &History,
-    ) -> BoardSlice {
-        BoardSlice::new(self.valid_moves(piece_id, board, history))
-    }
-}
-
 impl<'a, T> DynamicPieceSet<'a, T>
 where
     T: Piece + std::hash::Hash + Eq,
@@ -598,21 +565,55 @@ where
     }
 }
 
-trait Piece:
-    Copy + Default + std::convert::From<isize> + std::convert::Into<isize> + PartialEq
+impl<'a, T> PieceSet<'a> for DynamicPieceSet<'a, T>
+where
+    T: Piece + std::hash::Hash + Eq,
 {
-    fn none() -> Self;
+    type PieceType = T;
+
+    fn moveset(&self, piece: &T) -> Option<&[CanMove<'a, Self::PieceType>]> {
+        if let Some(moveset) = self.0.get(piece) {
+            return Some(&moveset[..]);
+        }
+        return None;
+    }
+
+    fn valid_slice(
+        &self,
+        piece_id: &PieceId<T>,
+        board: &dyn Board<PieceType = T>,
+        history: &History,
+    ) -> BoardSlice {
+        BoardSlice::new(self.valid_moves(piece_id, board, history))
+    }
 }
 
-#[derive(Default)]
 struct PieceId<T>(T, Sign, usize);
+
+impl<P: Piece> From<(isize, usize)> for PieceId<P> {
+    fn from((i, version): (isize, usize)) -> Self {
+        PieceId(i.into(), i.signum().into(), version)
+    }
+}
+
+impl<P: Piece> From<PieceId<P>> for (isize, usize) {
+    fn from(piece_id: PieceId<P>) -> Self {
+        (&piece_id).into()
+    }
+}
+
+impl<P: Piece> From<&PieceId<P>> for (isize, usize) {
+    fn from(piece_id: &PieceId<P>) -> Self {
+        (piece_id.i(), piece_id.version())
+    }
+}
 
 impl<T> PieceId<T>
 where
     T: Piece,
 {
-    fn fromi(i: isize, version: usize) -> Self {
-        PieceId(i.into(), i.signum().into(), version)
+    fn is_none(&self) -> bool {
+        self.0 == T::none()
     }
 
     fn piece(&self) -> T {
@@ -640,6 +641,12 @@ where
     }
 }
 
+impl<P: Piece> Default for PieceId<P> {
+    fn default() -> Self {
+        PieceId(P::none(), Sign::None, 0)
+    }
+}
+
 struct PiecePos<'a, P>(usize, &'a dyn Board<PieceType = P>);
 
 impl<'a, P> From<(isize, isize, &'a dyn Board<PieceType = P>)> for PiecePos<'a, P> {
@@ -650,10 +657,7 @@ impl<'a, P> From<(isize, isize, &'a dyn Board<PieceType = P>)> for PiecePos<'a, 
 
 impl<'a, P> From<PiecePos<'a, P>> for (isize, isize) {
     fn from(pos: PiecePos<'a, P>) -> Self {
-        (
-            (pos.0 % pos.1.get_row_size()) as isize,
-            (pos.0 / pos.1.get_row_size()) as isize,
-        )
+        (&pos).into()
     }
 }
 
@@ -844,18 +848,18 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
             .and_then(|repeats| {
                 for (version, existing_pos) in repeats.iter().enumerate() {
                     if &u == existing_pos {
-                        return Some(PieceId::fromi(id, version));
+                        return Some(PieceId::from((id, version)));
                     }
                 }
                 return None;
             })
-            .or(Some(PieceId::fromi(id, 0)))
+            .or(Some(PieceId::from((id, 0))))
     }
 
     fn get_id_not_none(&self, pos: &PiecePos<P>) -> Option<PieceId<P>> {
         match self.get_id(pos) {
             Some(id) => {
-                if id.piece() != P::none() {
+                if !id.is_none() {
                     return Some(id);
                 }
                 return None;
