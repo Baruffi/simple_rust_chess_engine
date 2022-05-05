@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-const MAX_USIZE: usize = 1000;
-
 struct MoveStep {
     x: isize,
     y: isize,
@@ -27,8 +25,8 @@ impl Move {
         &self,
         piece_id: &PieceId,
         piece_pos: &PiecePos,
-        board: &dyn Board,
         can_capture: &CanCapture,
+        board: &dyn Board,
     ) -> Vec<usize> {
         let mut calculated = Vec::new();
         let (px, py): (isize, isize) = piece_pos.into();
@@ -196,6 +194,37 @@ impl std::ops::Sub<Sign> for isize {
     }
 }
 
+trait PieceSet<'a, T> {
+    fn moveset(&self, piece: &T) -> Option<&Vec<CanMove<'a>>>;
+}
+
+#[derive(Default)]
+struct PieceMap<'a, T>(HashMap<T, Vec<CanMove<'a>>>)
+where
+    T: std::hash::Hash + Eq;
+
+impl<'a, T> PieceSet<'a, T> for PieceMap<'a, T>
+where
+    T: std::hash::Hash + Eq,
+{
+    fn moveset(&self, piece: &T) -> Option<&Vec<CanMove<'a>>> {
+        self.0.get(piece)
+    }
+}
+
+impl<'a, T> PieceMap<'a, T>
+where
+    T: std::hash::Hash + Eq,
+{
+    fn insert(&mut self, piece: T, piece_move: CanMove<'a>) {
+        if let Some(moveset) = self.0.get_mut(&piece) {
+            moveset.push(piece_move);
+        } else {
+            self.0.insert(piece, vec![piece_move]);
+        }
+    }
+}
+
 #[derive(PartialEq, PartialOrd, Clone, Copy)]
 enum Piece {
     None,
@@ -324,16 +353,16 @@ impl Piece {
         CanMove::Free(Move::new(-2, -1, 1), CanCapture::Opposing(1)),
     ];
     const BISHOP_MOVESET: [CanMove<'static>; 4] = [
-        CanMove::Free(Move::new(1, 1, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(-1, 1, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(1, -1, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(-1, -1, MAX_USIZE), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(1, 1, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(-1, 1, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(1, -1, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(-1, -1, usize::MAX), CanCapture::Opposing(1)),
     ];
     const ROOK_MOVESET: [CanMove<'static>; 6] = [
-        CanMove::Free(Move::new(1, 0, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(-1, 0, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(0, 1, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(0, -1, MAX_USIZE), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(1, 0, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(-1, 0, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(0, 1, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(0, -1, usize::MAX), CanCapture::Opposing(1)),
         CanMove::Conditional(&|id, board, history| {
             board.get_pos(id).and_then(|op| {
                 let idx1 = op.left(id.sign());
@@ -392,14 +421,14 @@ impl Piece {
         }),
     ];
     const QUEEN_MOVESET: [CanMove<'static>; 8] = [
-        CanMove::Free(Move::new(1, 0, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(-1, 0, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(0, 1, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(0, -1, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(1, 1, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(-1, 1, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(1, -1, MAX_USIZE), CanCapture::Opposing(1)),
-        CanMove::Free(Move::new(-1, -1, MAX_USIZE), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(1, 0, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(-1, 0, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(0, 1, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(0, -1, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(1, 1, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(-1, 1, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(1, -1, usize::MAX), CanCapture::Opposing(1)),
+        CanMove::Free(Move::new(-1, -1, usize::MAX), CanCapture::Opposing(1)),
     ];
     const KING_MOVESET: [CanMove<'static>; 10] = [
         CanMove::Free(Move::new(1, 0, 1), CanCapture::Opposing(1)),
@@ -515,9 +544,9 @@ impl PieceId {
         let pos = board.get_pos(self)?;
         for can_move in self.piece().moveset() {
             let mut move_op = match can_move {
-                CanMove::Free(m, c) => m.calculate(self, &pos, board, c),
+                CanMove::Free(m, c) => m.calculate(self, &pos, c, board),
                 CanMove::Conditional(c) => match c(self, board, history) {
-                    Some((m, c)) => m.calculate(self, &pos, board, &c),
+                    Some((m, c)) => m.calculate(self, &pos, &c, board),
                     None => Vec::new(),
                 },
             };
@@ -624,14 +653,6 @@ impl<'a> PiecePos<'a> {
     }
 }
 
-trait BoardNav<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize> {
-    fn new(initial_state: [isize; T_BOARD_SIZE]) -> Self
-    where
-        Self: Sized;
-    fn row(&self, row: usize) -> [isize; T_ROW_SIZE];
-    fn col(&self, col: usize) -> [isize; T_COL_SIZE];
-}
-
 trait Board {
     fn get_row_size(&self) -> usize;
     fn get_col_size(&self) -> usize;
@@ -644,15 +665,13 @@ trait Board {
     fn clear(&mut self);
 }
 
-#[derive(Debug, Clone)]
 struct StandardBoard<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize> {
     state: [isize; T_BOARD_SIZE],
     repeats: HashMap<isize, Vec<usize>>,
 }
 
 impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize>
-    BoardNav<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE>
-    for StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE>
+    StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE>
 {
     fn new(initial_state: [isize; T_BOARD_SIZE]) -> Self {
         let mut repeats: HashMap<isize, Vec<usize>> = HashMap::new();
@@ -787,7 +806,6 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
     }
 }
 
-#[derive(Debug)]
 struct History {
     past: HashMap<(isize, usize), BoardSlice>,
 }
@@ -826,7 +844,6 @@ impl History {
     }
 }
 
-#[derive(Debug)]
 struct BoardSlice(Vec<usize>);
 
 impl BoardSlice {
@@ -845,16 +862,11 @@ impl BoardSlice {
         self.0.push(pos);
     }
 
-    fn visualize<
-        const ROW_SIZE: usize,
-        const COL_SIZE: usize,
-        const BOARD_SIZE: usize,
-        T: Board + BoardNav<ROW_SIZE, COL_SIZE, BOARD_SIZE>,
-    >(
+    fn visualize<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize>(
         &self,
         fill: isize,
-    ) -> T {
-        let mut visual = T::new([0; BOARD_SIZE]);
+    ) -> StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE> {
+        let mut visual = StandardBoard::new([0; T_BOARD_SIZE]);
         for v in &self.0 {
             visual.set_square(&PieceId(fill.into(), fill.into(), 0), *v);
         }
@@ -919,8 +931,8 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
     }
 
     fn visualize_moves(&self, id: &PieceId) {
-        let mirror: StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE> =
-            id.valid_slice(&self.board, &self.history).visualize(id.i());
+        let slice = id.valid_slice(&self.board, &self.history);
+        let mirror: StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE> = slice.visualize(id.i());
         println!("{:?}", mirror.row(0));
         println!("{:?}", mirror.row(1));
         println!("{:?}", mirror.row(2));
