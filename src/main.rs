@@ -525,7 +525,6 @@ impl PieceSet<'static> for StandardPieceSet {
     }
 }
 
-#[derive(Default)]
 struct DynamicPieceSet<'a, T>(HashMap<T, Vec<CanMove<'a, T>>>)
 where
     T: std::hash::Hash + Eq;
