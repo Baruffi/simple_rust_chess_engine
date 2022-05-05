@@ -21,7 +21,7 @@ impl Move {
         }
     }
 
-    fn calculate<P: IsizeLike>(
+    fn calculate<P: Piece>(
         &self,
         piece_id: &PieceId<P>,
         piece_pos: &PiecePos<P>,
@@ -64,7 +64,7 @@ enum CanCapture<'a, P> {
     All,
 }
 
-impl<'a, P: IsizeLike> CanCapture<'a, P> {
+impl<'a, P: Piece> CanCapture<'a, P> {
     fn check(&self, id: &PieceId<P>, other: &PieceId<P>, captured: &mut usize) -> bool {
         match self {
             CanCapture::None => other.piece() == P::none(),
@@ -211,8 +211,8 @@ trait PieceSet<'a> {
     ) -> BoardSlice;
 }
 
-#[derive(PartialEq, PartialOrd, Clone, Copy, Eq, Hash)]
-enum Piece {
+#[derive(PartialEq, PartialOrd, Clone, Copy)]
+enum StandardPiece {
     None,
     Pawn,
     Knight,
@@ -222,33 +222,33 @@ enum Piece {
     King,
 }
 
-impl Default for Piece {
+impl Default for StandardPiece {
     fn default() -> Self {
-        Piece::None
+        StandardPiece::None
     }
 }
 
-impl IsizeLike for Piece {
+impl Piece for StandardPiece {
     fn none() -> Self {
         Self::None
     }
 }
 
-impl From<Piece> for isize {
-    fn from(i: Piece) -> Self {
+impl From<StandardPiece> for isize {
+    fn from(i: StandardPiece) -> Self {
         match i {
-            Piece::None => 0,
-            Piece::Pawn => 1,
-            Piece::Knight => 2,
-            Piece::Bishop => 3,
-            Piece::Rook => 4,
-            Piece::Queen => 5,
-            Piece::King => 6,
+            StandardPiece::None => 0,
+            StandardPiece::Pawn => 1,
+            StandardPiece::Knight => 2,
+            StandardPiece::Bishop => 3,
+            StandardPiece::Rook => 4,
+            StandardPiece::Queen => 5,
+            StandardPiece::King => 6,
         }
     }
 }
 
-impl From<isize> for Piece {
+impl From<isize> for StandardPiece {
     fn from(i: isize) -> Self {
         match i.abs() {
             0 => Self::None,
@@ -263,10 +263,10 @@ impl From<isize> for Piece {
     }
 }
 
-struct StaticPieceSet;
+struct StandardPieceSet;
 
-impl StaticPieceSet {
-    const PAWN_MOVESET: [CanMove<'static, Piece>; 6] = [
+impl StandardPieceSet {
+    const PAWN_MOVESET: [CanMove<'static, StandardPiece>; 6] = [
         CanMove::Free(Move::new(0, 1, 1), CanCapture::None),
         CanMove::Conditional(&|id, _, history| {
             if history.get_slice(id).is_none() {
@@ -300,7 +300,7 @@ impl StaticPieceSet {
             board.get_pos(id).and_then(|op| {
                 let op_left = op.left(id.sign());
                 board.get_id(&op_left).and_then(|other| {
-                    if other.opposes(id) && other.piece() == Piece::Pawn {
+                    if other.opposes(id) && other.piece() == StandardPiece::Pawn {
                         return history.get_slice(&other).and_then(|prev| {
                             prev.inner().last().and_then(|last| {
                                 if last == &op_left.bottom(other.sign()).bottom(other.sign()).u() {
@@ -319,7 +319,7 @@ impl StaticPieceSet {
             board.get_pos(id).and_then(|op| {
                 let op_right = op.right(id.sign());
                 board.get_id(&op_right).and_then(|other| {
-                    if other.opposes(id) && other.piece() == Piece::Pawn {
+                    if other.opposes(id) && other.piece() == StandardPiece::Pawn {
                         return history.get_slice(&other).and_then(|prev| {
                             prev.inner().last().and_then(|last| {
                                 if last == &op_right.bottom(other.sign()).bottom(other.sign()).u() {
@@ -335,7 +335,7 @@ impl StaticPieceSet {
             })
         }),
     ];
-    const KNIGHT_MOVESET: [CanMove<'static, Piece>; 8] = [
+    const KNIGHT_MOVESET: [CanMove<'static, StandardPiece>; 8] = [
         CanMove::Free(Move::new(1, 2, 1), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(-1, 2, 1), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(1, -2, 1), CanCapture::Opposing(1)),
@@ -345,13 +345,13 @@ impl StaticPieceSet {
         CanMove::Free(Move::new(2, -1, 1), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(-2, -1, 1), CanCapture::Opposing(1)),
     ];
-    const BISHOP_MOVESET: [CanMove<'static, Piece>; 4] = [
+    const BISHOP_MOVESET: [CanMove<'static, StandardPiece>; 4] = [
         CanMove::Free(Move::new(1, 1, usize::MAX), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(-1, 1, usize::MAX), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(1, -1, usize::MAX), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(-1, -1, usize::MAX), CanCapture::Opposing(1)),
     ];
-    const ROOK_MOVESET: [CanMove<'static, Piece>; 6] = [
+    const ROOK_MOVESET: [CanMove<'static, StandardPiece>; 6] = [
         CanMove::Free(Move::new(1, 0, usize::MAX), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(-1, 0, usize::MAX), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(0, 1, usize::MAX), CanCapture::Opposing(1)),
@@ -363,9 +363,9 @@ impl StaticPieceSet {
                 let idx3 = idx2.left(id.sign());
                 let idx4 = idx3.left(id.sign());
                 let other_match = |distance: isize| {
-                    move |other: PieceId<Piece>| {
+                    move |other: PieceId<StandardPiece>| {
                         if other.matches(id)
-                            && other.piece() == Piece::King
+                            && other.piece() == StandardPiece::King
                             && history.get_slice(id).is_none()
                             && history.get_slice(&other).is_none()
                         {
@@ -391,9 +391,9 @@ impl StaticPieceSet {
                 let idx3 = idx2.right(id.sign());
                 let idx4 = idx3.right(id.sign());
                 let other_match = |distance: isize| {
-                    move |other: PieceId<Piece>| {
+                    move |other: PieceId<StandardPiece>| {
                         if other.matches(id)
-                            && other.piece() == Piece::King
+                            && other.piece() == StandardPiece::King
                             && history.get_slice(id).is_none()
                             && history.get_slice(&other).is_none()
                         {
@@ -413,7 +413,7 @@ impl StaticPieceSet {
             })
         }),
     ];
-    const QUEEN_MOVESET: [CanMove<'static, Piece>; 8] = [
+    const QUEEN_MOVESET: [CanMove<'static, StandardPiece>; 8] = [
         CanMove::Free(Move::new(1, 0, usize::MAX), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(-1, 0, usize::MAX), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(0, 1, usize::MAX), CanCapture::Opposing(1)),
@@ -423,7 +423,7 @@ impl StaticPieceSet {
         CanMove::Free(Move::new(1, -1, usize::MAX), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(-1, -1, usize::MAX), CanCapture::Opposing(1)),
     ];
-    const KING_MOVESET: [CanMove<'static, Piece>; 10] = [
+    const KING_MOVESET: [CanMove<'static, StandardPiece>; 10] = [
         CanMove::Free(Move::new(1, 0, 1), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(-1, 0, 1), CanCapture::Opposing(1)),
         CanMove::Free(Move::new(0, 1, 1), CanCapture::Opposing(1)),
@@ -438,9 +438,9 @@ impl StaticPieceSet {
                 let idx2 = idx1.left(id.sign());
                 let idx3 = idx2.left(id.sign());
                 let idx4 = idx3.left(id.sign());
-                let other_match = |other: PieceId<Piece>| {
+                let other_match = |other: PieceId<StandardPiece>| {
                     if other.matches(id)
-                        && other.piece() == Piece::Rook
+                        && other.piece() == StandardPiece::Rook
                         && history.get_slice(id).is_none()
                         && history.get_slice(&other).is_none()
                     {
@@ -464,9 +464,9 @@ impl StaticPieceSet {
                 let idx2 = idx1.right(id.sign());
                 let idx3 = idx2.right(id.sign());
                 let idx4 = idx3.right(id.sign());
-                let other_match = |other: PieceId<Piece>| {
+                let other_match = |other: PieceId<StandardPiece>| {
                     if other.matches(id)
-                        && other.piece() == Piece::Rook
+                        && other.piece() == StandardPiece::Rook
                         && history.get_slice(id).is_none()
                         && history.get_slice(&other).is_none()
                     {
@@ -488,8 +488,8 @@ impl StaticPieceSet {
 
     fn valid_moves(
         &self,
-        piece_id: &PieceId<Piece>,
-        board: &dyn Board<PieceType = Piece>,
+        piece_id: &PieceId<StandardPiece>,
+        board: &dyn Board<PieceType = StandardPiece>,
         history: &History,
     ) -> Option<Vec<usize>> {
         let mut valid = Vec::new();
@@ -509,26 +509,26 @@ impl StaticPieceSet {
     }
 }
 
-impl PieceSet<'static> for StaticPieceSet {
-    type PieceType = Piece;
+impl PieceSet<'static> for StandardPieceSet {
+    type PieceType = StandardPiece;
 
-    fn moveset(&self, piece: &Piece) -> Option<&[CanMove<'static, Self::PieceType>]> {
+    fn moveset(&self, piece: &StandardPiece) -> Option<&[CanMove<'static, Self::PieceType>]> {
         let moveset = match piece {
-            Piece::None => &[],
-            Piece::Pawn => &Self::PAWN_MOVESET[..],
-            Piece::Knight => &Self::KNIGHT_MOVESET[..],
-            Piece::Bishop => &Self::BISHOP_MOVESET[..],
-            Piece::Rook => &Self::ROOK_MOVESET[..],
-            Piece::Queen => &Self::QUEEN_MOVESET[..],
-            Piece::King => &Self::KING_MOVESET[..],
+            StandardPiece::None => &[],
+            StandardPiece::Pawn => &Self::PAWN_MOVESET[..],
+            StandardPiece::Knight => &Self::KNIGHT_MOVESET[..],
+            StandardPiece::Bishop => &Self::BISHOP_MOVESET[..],
+            StandardPiece::Rook => &Self::ROOK_MOVESET[..],
+            StandardPiece::Queen => &Self::QUEEN_MOVESET[..],
+            StandardPiece::King => &Self::KING_MOVESET[..],
         };
         return Some(moveset);
     }
 
     fn valid_slice(
         &self,
-        piece_id: &PieceId<Piece>,
-        board: &dyn Board<PieceType = Piece>,
+        piece_id: &PieceId<StandardPiece>,
+        board: &dyn Board<PieceType = StandardPiece>,
         history: &History,
     ) -> BoardSlice {
         BoardSlice::new(self.valid_moves(piece_id, board, history))
@@ -542,7 +542,7 @@ where
 
 impl<'a, T> PieceSet<'a> for DynamicPieceSet<'a, T>
 where
-    T: std::hash::Hash + Eq,
+    T: Piece + std::hash::Hash + Eq,
 {
     type PieceType = T;
 
@@ -565,7 +565,7 @@ where
 
 impl<'a, T> DynamicPieceSet<'a, T>
 where
-    T: std::hash::Hash + Eq,
+    T: Piece + std::hash::Hash + Eq,
 {
     fn insert(&mut self, piece: T, piece_move: CanMove<'a, T>) {
         if let Some(moveset) = self.0.get_mut(&piece) {
@@ -581,43 +581,41 @@ where
         board: &dyn Board<PieceType = T>,
         history: &History,
     ) -> Option<Vec<usize>> {
-        todo!()
+        let mut valid = Vec::new();
+        let pos = board.get_pos(piece_id)?;
+        let moveset = self.moveset(&piece_id.piece())?;
+        for can_move in moveset {
+            let mut move_op = match can_move {
+                CanMove::Free(m, c) => m.calculate(piece_id, &pos, c, board),
+                CanMove::Conditional(c) => match c(piece_id, board, history) {
+                    Some((m, c)) => m.calculate(piece_id, &pos, &c, board),
+                    None => Vec::new(),
+                },
+            };
+            valid.append(&mut move_op);
+        }
+        Some(valid)
     }
 }
 
-trait IsizeLike:
+trait Piece:
     Copy + Default + std::convert::From<isize> + std::convert::Into<isize> + PartialEq
 {
     fn none() -> Self;
 }
 
-trait PieceMask {
-    type PieceType: IsizeLike;
-    fn fromi(i: isize, version: usize) -> Self
-    where
-        Self: Sized;
-    fn piece(&self) -> Self::PieceType;
-    fn sign(&self) -> Sign;
-    fn version(&self) -> usize;
-    fn i(&self) -> isize;
-    fn matches(&self, other: &Self) -> bool;
-    fn opposes(&self, other: &Self) -> bool;
-}
-
 #[derive(Default)]
 struct PieceId<T>(T, Sign, usize);
 
-impl<T> PieceMask for PieceId<T>
+impl<T> PieceId<T>
 where
-    T: IsizeLike,
+    T: Piece,
 {
-    type PieceType = T;
-
     fn fromi(i: isize, version: usize) -> Self {
         PieceId(i.into(), i.signum().into(), version)
     }
 
-    fn piece(&self) -> Self::PieceType {
+    fn piece(&self) -> T {
         self.0
     }
 
@@ -752,14 +750,14 @@ struct StandardBoard<
     const T_ROW_SIZE: usize,
     const T_COL_SIZE: usize,
     const T_BOARD_SIZE: usize,
-    P: IsizeLike,
+    P: Piece,
 > {
     state: [isize; T_BOARD_SIZE],
     repeats: HashMap<isize, Vec<usize>>,
     __: PhantomData<P>,
 }
 
-impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize, P: IsizeLike>
+impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize, P: Piece>
     StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE, P>
 {
     fn new(initial_state: [isize; T_BOARD_SIZE]) -> Self {
@@ -809,8 +807,8 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
     }
 }
 
-impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize, P: IsizeLike>
-    Board for StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE, P>
+impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize, P: Piece> Board
+    for StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE, P>
 {
     type PieceType = P;
     fn get_row_size(&self) -> usize {
@@ -911,11 +909,11 @@ impl History {
         }
     }
 
-    fn get_slice<P: IsizeLike>(&self, id: &PieceId<P>) -> Option<&BoardSlice> {
+    fn get_slice<P: Piece>(&self, id: &PieceId<P>) -> Option<&BoardSlice> {
         self.past.get(&(id.i(), id.version()))
     }
 
-    fn push<P: IsizeLike>(&mut self, id: &PieceId<P>, pos: &PiecePos<P>) {
+    fn push<P: Piece>(&mut self, id: &PieceId<P>, pos: &PiecePos<P>) {
         let old_slice = self.past.get(&(id.i(), id.version()));
         match old_slice {
             Some(slice) => {
@@ -957,7 +955,7 @@ impl BoardSlice {
         const T_ROW_SIZE: usize,
         const T_COL_SIZE: usize,
         const T_BOARD_SIZE: usize,
-        P: IsizeLike,
+        P: Piece,
     >(
         &self,
         fill: isize,
@@ -984,7 +982,7 @@ impl<
         const T_ROW_SIZE: usize,
         const T_COL_SIZE: usize,
         const T_BOARD_SIZE: usize,
-        P: IsizeLike,
+        P: Piece,
         S: PieceSet<'static, PieceType = P>,
     > Game<StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE, P>, S>
 {
@@ -1053,7 +1051,7 @@ impl<
 }
 
 fn main() {
-    let mut game = Game::<StandardBoard<8, 8, 64, Piece>, StaticPieceSet>::new(
+    let mut game = Game::<StandardBoard<8, 8, 64, StandardPiece>, StandardPieceSet>::new(
         [
             4, 2, 3, 5, 6, 3, 2, 4, //
             1, 1, 1, 1, 1, 1, 1, 1, //
@@ -1064,14 +1062,14 @@ fn main() {
             -1, -1, -1, -1, -1, -1, -1, -1, //
             -4, -2, -3, -5, -6, -3, -2, -4, //
         ],
-        StaticPieceSet,
+        StandardPieceSet,
     );
-    let my_pawn = &PieceId(Piece::Pawn, Sign::Positive, 3);
-    let my_rook = &PieceId(Piece::Rook, Sign::Positive, 0);
-    let my_knight = &PieceId(Piece::Knight, Sign::Positive, 0);
-    let my_bishop = &PieceId(Piece::Bishop, Sign::Positive, 0);
-    let my_queen = &PieceId(Piece::Queen, Sign::Positive, 0);
-    let my_king = &PieceId(Piece::King, Sign::Positive, 0);
+    let my_pawn = &PieceId(StandardPiece::Pawn, Sign::Positive, 3);
+    let my_rook = &PieceId(StandardPiece::Rook, Sign::Positive, 0);
+    let my_knight = &PieceId(StandardPiece::Knight, Sign::Positive, 0);
+    let my_bishop = &PieceId(StandardPiece::Bishop, Sign::Positive, 0);
+    let my_queen = &PieceId(StandardPiece::Queen, Sign::Positive, 0);
+    let my_king = &PieceId(StandardPiece::King, Sign::Positive, 0);
 
     game.print();
     println!("");
