@@ -1,11 +1,7 @@
-use self::can_capture::CanCapture;
 use crate::{
-    board::Board,
-    piece::{piece_id::PieceId, piece_pos::PiecePos, Piece},
+    board::{Board, BoardHistory},
+    piece::{Piece, PieceId, PiecePos},
 };
-
-pub mod can_capture;
-pub mod can_move;
 
 struct MoveStep {
     x: isize,
@@ -61,4 +57,39 @@ impl Move {
         }
         calculated
     }
+}
+
+pub enum CanCapture<'a, P> {
+    None,
+    Matching(usize),
+    Opposing(usize),
+    Specific(&'a dyn Fn(&PieceId<P>, &PieceId<P>, &mut usize) -> bool),
+    All,
+}
+
+impl<'a, P: Piece> CanCapture<'a, P> {
+    pub fn check(&self, id: &PieceId<P>, other: &PieceId<P>, captured: &mut usize) -> bool {
+        match self {
+            CanCapture::None => other.is_none(),
+            CanCapture::Matching(max) => {
+                other.is_none() || (*captured < *max && (*captured += 1) == () && id.matches(other))
+            }
+            CanCapture::Opposing(max) => {
+                other.is_none() || (*captured < *max && (*captured += 1) == () && id.opposes(other))
+            }
+            CanCapture::Specific(s) => s(id, other, captured),
+            CanCapture::All => true,
+        }
+    }
+}
+
+pub enum CanMove<'a, P> {
+    Free(Move, CanCapture<'a, P>),
+    Conditional(
+        &'a dyn Fn(
+            &PieceId<P>,
+            &dyn Board<PieceType = P>,
+            &BoardHistory,
+        ) -> Option<(Move, CanCapture<'a, P>)>,
+    ),
 }

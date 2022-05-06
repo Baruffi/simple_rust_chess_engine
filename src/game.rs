@@ -1,7 +1,7 @@
 use crate::{
-    board::{board_history::BoardHistory, Board},
-    implementations::board::standard_board::StandardBoard,
-    piece::{piece_id::PieceId, piece_pos::PiecePos, piece_set::PieceSet, Piece},
+    board::{Board, BoardHistory},
+    implementations::board::StandardBoard,
+    piece::{Piece, PieceId, PiecePos, PieceSet},
 };
 
 pub struct Game<T, S>

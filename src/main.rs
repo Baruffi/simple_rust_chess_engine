@@ -1,10 +1,10 @@
 use crate::{
     game::Game,
     implementations::{
-        board::standard_board::StandardBoard,
-        piece::{standard_piece::StandardPiece, standard_piece_set::StandardPieceSet},
+        board::StandardBoard,
+        piece::{StandardPiece, StandardPieceSet},
     },
-    piece::{piece_id::PieceId, sign::Sign},
+    piece::{PieceId, Sign},
 };
 
 mod board;
