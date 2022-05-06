@@ -1,4 +1,4 @@
-use crate::{
+use crate::chess::{
     board::{Board, BoardHistory},
     piece::{Piece, PieceId, PiecePos},
 };

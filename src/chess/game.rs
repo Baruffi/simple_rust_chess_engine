@@ -1,6 +1,6 @@
-use crate::{
+use crate::chess::{
     board::{Board, BoardHistory},
-    implementations::board::StandardBoard,
+    standard::board::StandardBoard,
     piece::{Piece, PieceId, PiecePos, PieceSet},
 };
 

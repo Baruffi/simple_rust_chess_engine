@@ -1,17 +1,13 @@
-use crate::{
+use crate::chess::{
     game::Game,
-    implementations::{
+    standard::{
         board::StandardBoard,
         piece::{StandardPiece, StandardPieceSet},
     },
     piece::{PieceId, Sign},
 };
 
-mod board;
-mod game;
-mod implementations;
-mod movement;
-mod piece;
+mod chess;
 
 fn main() {
     let mut game = Game::<StandardBoard<8, 8, 64, StandardPiece>, StandardPieceSet>::new(

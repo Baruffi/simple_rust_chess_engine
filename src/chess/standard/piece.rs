@@ -1,70 +1,54 @@
 use std::collections::HashMap;
 
-use crate::{
+use crate::chess::{
     board::{Board, BoardHistory, BoardSlice},
     movement::{CanCapture, CanMove, Move},
     piece::{Piece, PieceId, PieceSet},
 };
 
-pub struct DynamicPieceSet<'a, T>(pub HashMap<T, Vec<CanMove<'a, T>>>)
-where
-    T: std::hash::Hash + Eq;
+#[derive(PartialEq, PartialOrd, Clone, Copy)]
+pub enum StandardPiece {
+    None,
+    Pawn,
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
+    King,
+}
 
-impl<'a, T> DynamicPieceSet<'a, T>
-where
-    T: Piece + std::hash::Hash + Eq,
-{
-    pub fn insert(&mut self, piece: T, piece_move: CanMove<'a, T>) {
-        if let Some(moveset) = self.0.get_mut(&piece) {
-            moveset.push(piece_move);
-        } else {
-            self.0.insert(piece, vec![piece_move]);
+impl From<StandardPiece> for isize {
+    fn from(i: StandardPiece) -> Self {
+        match i {
+            StandardPiece::None => 0,
+            StandardPiece::Pawn => 1,
+            StandardPiece::Knight => 2,
+            StandardPiece::Bishop => 3,
+            StandardPiece::Rook => 4,
+            StandardPiece::Queen => 5,
+            StandardPiece::King => 6,
         }
-    }
-
-    fn valid_moves(
-        &self,
-        piece_id: &PieceId<T>,
-        board: &dyn Board<PieceType = T>,
-        history: &BoardHistory,
-    ) -> Option<Vec<usize>> {
-        let mut valid = Vec::new();
-        let pos = board.get_pos(piece_id)?;
-        let moveset = self.moveset(&piece_id.piece())?;
-        for can_move in moveset {
-            let mut move_op = match can_move {
-                CanMove::Free(m, c) => m.calculate(piece_id, &pos, c, board),
-                CanMove::Conditional(c) => match c(piece_id, board, history) {
-                    Some((m, c)) => m.calculate(piece_id, &pos, &c, board),
-                    None => Vec::new(),
-                },
-            };
-            valid.append(&mut move_op);
-        }
-        Some(valid)
     }
 }
 
-impl<'a, T> PieceSet<'a> for DynamicPieceSet<'a, T>
-where
-    T: Piece + std::hash::Hash + Eq,
-{
-    type PieceType = T;
-
-    fn moveset(&self, piece: &T) -> Option<&[CanMove<'a, Self::PieceType>]> {
-        if let Some(moveset) = self.0.get(piece) {
-            return Some(&moveset[..]);
+impl From<isize> for StandardPiece {
+    fn from(i: isize) -> Self {
+        match i.abs() {
+            0 => Self::None,
+            1 => Self::Pawn,
+            2 => Self::Knight,
+            3 => Self::Bishop,
+            4 => Self::Rook,
+            5 => Self::Queen,
+            6 => Self::King,
+            _ => panic!("unknown piece {}", i.abs()),
         }
-        return None;
     }
+}
 
-    fn valid_slice(
-        &self,
-        piece_id: &PieceId<T>,
-        board: &dyn Board<PieceType = T>,
-        history: &BoardHistory,
-    ) -> BoardSlice {
-        BoardSlice::new(self.valid_moves(piece_id, board, history))
+impl Piece for StandardPiece {
+    fn none() -> Self {
+        Self::None
     }
 }
 
@@ -337,51 +321,5 @@ impl PieceSet<'static> for StandardPieceSet {
         history: &BoardHistory,
     ) -> BoardSlice {
         BoardSlice::new(self.valid_moves(piece_id, board, history))
-    }
-}
-
-#[derive(PartialEq, PartialOrd, Clone, Copy)]
-pub enum StandardPiece {
-    None,
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King,
-}
-
-impl From<StandardPiece> for isize {
-    fn from(i: StandardPiece) -> Self {
-        match i {
-            StandardPiece::None => 0,
-            StandardPiece::Pawn => 1,
-            StandardPiece::Knight => 2,
-            StandardPiece::Bishop => 3,
-            StandardPiece::Rook => 4,
-            StandardPiece::Queen => 5,
-            StandardPiece::King => 6,
-        }
-    }
-}
-
-impl From<isize> for StandardPiece {
-    fn from(i: isize) -> Self {
-        match i.abs() {
-            0 => Self::None,
-            1 => Self::Pawn,
-            2 => Self::Knight,
-            3 => Self::Bishop,
-            4 => Self::Rook,
-            5 => Self::Queen,
-            6 => Self::King,
-            _ => panic!("unknown piece {}", i.abs()),
-        }
-    }
-}
-
-impl Piece for StandardPiece {
-    fn none() -> Self {
-        Self::None
     }
 }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::{
-    implementations::board::StandardBoard,
+use crate::chess::{
+    standard::board::StandardBoard,
     piece::{Piece, PieceId, PiecePos},
 };
 
