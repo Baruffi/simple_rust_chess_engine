@@ -27,12 +27,8 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
             }
             match last_seen_pos.insert(*id, pos) {
                 Some(v) => {
-                    if repeats.contains_key(id) {
-                        let existing_vec = repeats.get_mut(id).unwrap();
-                        existing_vec.push(pos);
-                    } else {
-                        repeats.insert(*id, vec![v, pos]);
-                    }
+                    let repeat = repeats.entry(*id).or_insert(vec![v]);
+                    repeat.push(pos);
                 }
                 None => (),
             }
@@ -131,9 +127,9 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
                 })
             })
             .or_else(|| {
-                for (idx, v) in self.state.iter().enumerate() {
-                    if v == &id.i() {
-                        return Some(PiecePos(idx, self));
+                for (pos, i) in self.state.iter().enumerate() {
+                    if i == &id.i() {
+                        return Some(PiecePos(pos, self));
                     }
                 }
                 return None;
@@ -141,9 +137,9 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
     }
 
     fn set_square(&mut self, id: &PieceId<P>, square: usize) {
-        if self.repeats.contains_key(&id.i()) {
-            self.repeats.get_mut(&id.i()).unwrap()[id.version()] = square;
-        }
+        self.repeats
+            .entry(id.i())
+            .and_modify(|repeat| repeat[id.version()] = square);
         self.state[square] = id.i();
     }
 

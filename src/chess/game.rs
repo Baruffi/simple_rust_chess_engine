@@ -1,7 +1,7 @@
 use crate::chess::{
     board::{Board, BoardHistory},
-    standard::board::StandardBoard,
     piece::{Piece, PieceId, PiecePos, PieceSet},
+    standard::board::StandardBoard,
 };
 
 pub struct Game<T, S>
@@ -60,28 +60,50 @@ impl<
         self.history.clear();
     }
 
-    pub fn print(&self) {
-        println!("{:?}", self.board.row(0));
-        println!("{:?}", self.board.row(1));
-        println!("{:?}", self.board.row(2));
-        println!("{:?}", self.board.row(3));
-        println!("{:?}", self.board.row(4));
-        println!("{:?}", self.board.row(5));
-        println!("{:?}", self.board.row(6));
-        println!("{:?}", self.board.row(7));
+    fn format_row(row: &[isize; T_ROW_SIZE]) -> String {
+        let closure = |v| match v {
+            &0 => ' ',
+            &1 => '♟',
+            &2 => '♞',
+            &3 => '♝',
+            &4 => '♜',
+            &5 => '♛',
+            &6 => '♚',
+            &-1 => '♙',
+            &-2 => '♘',
+            &-3 => '♗',
+            &-4 => '♖',
+            &-5 => '♕',
+            &-6 => '♔',
+            _ => panic!("illegal state"),
+        };
+        row.iter()
+            .map(closure)
+            .fold(String::from(""), |acc, v| format!("{}{}", acc, v))
+    }
+
+    fn print_board(board: &StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE, P>) {
+        let top_left_corner = String::from("┌");
+        let top_right_corner = String::from("┐");
+        let line = String::from("─").repeat(T_ROW_SIZE);
+        println!("{}{}{}", top_left_corner, line, top_right_corner);
+        for i in 0..T_ROW_SIZE {
+            let formatted_row = Self::format_row(&board.row(i));
+            println!(" {} ", formatted_row);
+        }
+        let bottom_left_corner = String::from("└");
+        let bottom_right_corner = String::from("┘");
+        println!("{}{}{}", bottom_left_corner, line, bottom_right_corner);
+    }
+
+    pub fn visualize_board(&self) {
+        Self::print_board(&self.board);
     }
 
     pub fn visualize_moves(&self, id: &PieceId<P>) {
         let slice = self.piece_set.valid_slice(id, &self.board, &self.history);
         let mirror: StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE, P> =
             slice.visualize(id.i());
-        println!("{:?}", mirror.row(0));
-        println!("{:?}", mirror.row(1));
-        println!("{:?}", mirror.row(2));
-        println!("{:?}", mirror.row(3));
-        println!("{:?}", mirror.row(4));
-        println!("{:?}", mirror.row(5));
-        println!("{:?}", mirror.row(6));
-        println!("{:?}", mirror.row(7));
+        Self::print_board(&mirror);
     }
 }

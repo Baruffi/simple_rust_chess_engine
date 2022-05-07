@@ -1,10 +1,10 @@
 use crate::chess::{
     game::Game,
+    piece::{PieceId, Sign},
     standard::{
         board::StandardBoard,
         piece::{StandardPiece, StandardPieceSet},
     },
-    piece::{PieceId, Sign},
 };
 
 mod chess;
@@ -30,54 +30,33 @@ fn main() {
     let my_queen = &PieceId(StandardPiece::Queen, Sign::Positive, 0);
     let my_king = &PieceId(StandardPiece::King, Sign::Positive, 0);
 
-    game.print();
-    println!("");
+    game.visualize_board();
     game.visualize_moves(my_pawn);
-    println!("");
     game.move_piece_relative(my_pawn, 16);
-    game.print();
-    println!("");
+    game.visualize_board();
     game.visualize_moves(my_pawn);
-    println!("");
     game.move_piece_relative(my_pawn, 8);
-    game.print();
-    println!("");
+    game.visualize_board();
     game.visualize_moves(my_pawn);
-    println!("");
     game.move_piece_relative(my_pawn, 8);
-    game.print();
-    println!("");
+    game.visualize_board();
     game.visualize_moves(my_pawn);
-    println!("");
     game.move_piece_relative(my_pawn, 7);
-    game.print();
-    println!("");
+    game.visualize_board();
     game.visualize_moves(my_knight);
-    println!("");
     game.move_piece_relative(my_knight, 15);
-    game.print();
-    println!("");
+    game.visualize_board();
     game.visualize_moves(my_bishop);
-    println!("");
     game.move_piece_relative(my_bishop, 27);
-    game.print();
-    println!("");
+    game.visualize_board();
     game.visualize_moves(my_queen);
     game.move_piece_relative(my_queen, 8);
-    println!("");
-    game.print();
-    println!("");
+    game.visualize_board();
     game.visualize_moves(my_king);
-    println!("");
     game.move_piece(my_king, 2);
     game.move_piece(my_rook, 3);
-    game.print();
-    println!("");
+    game.visualize_board();
     game.visualize_moves(my_rook);
     game.move_piece_relative(my_rook, 1);
-    println!("");
-    game.print();
-    println!("");
-    game.clear();
-    game.print();
+    game.visualize_board();
 }
