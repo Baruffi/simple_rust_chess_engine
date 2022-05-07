@@ -77,16 +77,6 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
         return T_BOARD_SIZE;
     }
 
-    fn piece_slice(&self, ids: &[PieceId<P>]) -> BoardSlice {
-        BoardSlice(
-            (0..T_BOARD_SIZE - 1)
-                .collect::<Vec<usize>>()
-                .into_iter()
-                .filter(|v| ids.iter().any(|id| self.state[*v] == id.i()))
-                .collect::<Vec<_>>(),
-        )
-    }
-
     fn get_id(&self, pos: &PiecePos<P>) -> Option<PieceId<P>> {
         let u = pos.u();
         if u > T_BOARD_SIZE {
@@ -119,6 +109,9 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
     }
 
     fn get_pos(&self, id: &PieceId<P>) -> Option<PiecePos<P>> {
+        if id.is_none() {
+            return None;
+        }
         self.repeats
             .get(&id.i())
             .and_then(|versions| {

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::chess::{
     board::{Board, BoardHistory, BoardSlice},
     movement::{CanCapture, CanMove, Move},

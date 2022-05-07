@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::chess::{
-    standard::board::StandardBoard,
     piece::{Piece, PieceId, PiecePos},
+    standard::board::StandardBoard,
 };
 
 pub trait Board {
@@ -10,7 +10,6 @@ pub trait Board {
     fn get_row_size(&self) -> usize;
     fn get_col_size(&self) -> usize;
     fn get_board_size(&self) -> usize;
-    fn piece_slice(&self, ids: &[PieceId<Self::PieceType>]) -> BoardSlice;
     fn get_id(&self, pos: &PiecePos<Self::PieceType>) -> Option<PieceId<Self::PieceType>>;
     fn get_id_not_none(&self, pos: &PiecePos<Self::PieceType>) -> Option<PieceId<Self::PieceType>>;
     fn get_pos(&self, id: &PieceId<Self::PieceType>) -> Option<PiecePos<Self::PieceType>>;
