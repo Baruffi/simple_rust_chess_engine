@@ -263,6 +263,16 @@ impl<'a, P> PiecePos<'a, P> {
         )
     }
 
+    pub fn distance(&self, other: PiecePos<P>) -> usize {
+        let (self_x, self_y) = self.into();
+        let (other_x, other_y) = other.into();
+
+        let distance_x = (self_x - other_x).abs() as usize;
+        let distance_y = (self_y - other_y).abs() as usize;
+
+        return distance_x.min(distance_y);
+    }
+
     pub fn offset(&self, sign: Sign, other: usize) -> Self {
         PiecePos((self.0 as isize + sign * other as isize) as usize, self.1)
     }

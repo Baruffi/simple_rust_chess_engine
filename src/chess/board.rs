@@ -11,7 +11,6 @@ pub trait Board {
     fn get_col_size(&self) -> usize;
     fn get_board_size(&self) -> usize;
     fn get_id(&self, pos: &PiecePos<Self::PieceType>) -> Option<PieceId<Self::PieceType>>;
-    fn get_id_not_none(&self, pos: &PiecePos<Self::PieceType>) -> Option<PieceId<Self::PieceType>>;
     fn get_pos(&self, id: &PieceId<Self::PieceType>) -> Option<PiecePos<Self::PieceType>>;
     fn set_square(&mut self, id: &PieceId<Self::PieceType>, square: usize);
     fn clear(&mut self);
@@ -36,18 +35,11 @@ impl BoardHistory {
     }
 
     pub fn push<P: Piece>(&mut self, id: &PieceId<P>, pos: &PiecePos<P>) {
-        let old_slice = self.past.get(&(id.i(), id.version()));
-        match old_slice {
-            Some(slice) => {
-                let mut new_slice = BoardSlice::new(Some(slice.inner().to_vec()));
-                new_slice.push(pos.u());
-                self.past.insert((id.i(), id.version()), new_slice);
-            }
-            None => {
-                let new_slice = BoardSlice::new(Some(vec![pos.u()]));
-                self.past.insert((id.i(), id.version()), new_slice);
-            }
-        }
+        let slice = self
+            .past
+            .entry((id.i(), id.version()))
+            .or_insert(BoardSlice(Vec::new()));
+        slice.push(pos.u());
     }
 
     pub fn clear(&mut self) {

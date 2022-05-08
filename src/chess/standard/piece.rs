@@ -1,3 +1,5 @@
+use std::ops::Neg;
+
 use crate::chess::{
     board::{Board, BoardHistory, BoardSlice},
     movement::{CanCapture, CanMove, Move},
@@ -145,56 +147,38 @@ impl StandardPieceSet {
         CanMove::Free(Move::new(0, -1, usize::MAX), CanCapture::Opposing(1)),
         CanMove::Conditional(&|id, board, history| {
             board.get_pos(id).and_then(|op| {
-                let idx1 = op.left(id.sign());
-                let idx2 = idx1.left(id.sign());
-                let idx3 = idx2.left(id.sign());
-                let idx4 = idx3.left(id.sign());
-                let other_match = |distance: isize| {
-                    move |other: PieceId<StandardPiece>| {
-                        if other.matches(id)
-                            && other.piece() == StandardPiece::King
-                            && history.get_slice(id).is_none()
-                            && history.get_slice(&other).is_none()
-                        {
-                            return Some((Move::new(distance, 0, 1), CanCapture::None));
-                        }
-                        return None;
+                let mut idx = op.left(id.sign());
+                while let Some(other_id) = board.get_id(&idx) {
+                    if other_id.is_none() {
+                        idx = idx.left(id.sign());
+                        continue;
                     }
-                };
-                if board.get_id_not_none(&idx1).is_none() && board.get_id_not_none(&idx2).is_none()
-                {
-                    return board
-                        .get_id_not_none(&idx3)
-                        .and_then(other_match(-2))
-                        .or_else(|| board.get_id_not_none(&idx4).and_then(other_match(-3)));
+                    return Self::castle_check(
+                        id,
+                        history,
+                        (idx.distance(op) as isize).neg(),
+                        other_id,
+                        StandardPiece::King,
+                    );
                 }
                 return None;
             })
         }),
         CanMove::Conditional(&|id, board, history| {
             board.get_pos(id).and_then(|op| {
-                let idx1 = op.right(id.sign());
-                let idx2 = idx1.right(id.sign());
-                let idx3 = idx2.right(id.sign());
-                let idx4 = idx3.right(id.sign());
-                let other_match = |distance: isize| {
-                    move |other: PieceId<StandardPiece>| {
-                        if other.matches(id)
-                            && other.piece() == StandardPiece::King
-                            && history.get_slice(id).is_none()
-                            && history.get_slice(&other).is_none()
-                        {
-                            return Some((Move::new(distance, 0, 1), CanCapture::None));
-                        }
-                        return None;
+                let mut idx = op.right(id.sign());
+                while let Some(other_id) = board.get_id(&idx) {
+                    if other_id.is_none() {
+                        idx = idx.right(id.sign());
+                        continue;
                     }
-                };
-                if board.get_id_not_none(&idx1).is_none() && board.get_id_not_none(&idx2).is_none()
-                {
-                    return board
-                        .get_id_not_none(&idx3)
-                        .and_then(other_match(2))
-                        .or_else(|| board.get_id_not_none(&idx4).and_then(other_match(3)));
+                    return Self::castle_check(
+                        id,
+                        history,
+                        idx.distance(op) as isize,
+                        other_id,
+                        StandardPiece::King,
+                    );
                 }
                 return None;
             })
@@ -221,57 +205,48 @@ impl StandardPieceSet {
         CanMove::Free(Move::new(-1, -1, 1), CanCapture::Opposing(1)),
         CanMove::Conditional(&|id, board, history| {
             board.get_pos(id).and_then(|op| {
-                let idx1 = op.left(id.sign());
-                let idx2 = idx1.left(id.sign());
-                let idx3 = idx2.left(id.sign());
-                let idx4 = idx3.left(id.sign());
-                let other_match = |other: PieceId<StandardPiece>| {
-                    if other.matches(id)
-                        && other.piece() == StandardPiece::Rook
-                        && history.get_slice(id).is_none()
-                        && history.get_slice(&other).is_none()
-                    {
-                        return Some((Move::new(-2, 0, 1), CanCapture::None));
+                let mut idx = op.left(id.sign());
+                while let Some(other_id) = board.get_id(&idx) {
+                    if other_id.is_none() {
+                        idx = idx.left(id.sign());
+                        continue;
                     }
-                    return None;
-                };
-                if board.get_id_not_none(&idx1).is_none() && board.get_id_not_none(&idx2).is_none()
-                {
-                    return board
-                        .get_id_not_none(&idx3)
-                        .and_then(other_match)
-                        .or_else(|| board.get_id_not_none(&idx4).and_then(other_match));
+                    return Self::castle_check(id, history, -2, other_id, StandardPiece::Rook);
                 }
                 return None;
             })
         }),
         CanMove::Conditional(&|id, board, history| {
             board.get_pos(id).and_then(|op| {
-                let idx1 = op.right(id.sign());
-                let idx2 = idx1.right(id.sign());
-                let idx3 = idx2.right(id.sign());
-                let idx4 = idx3.right(id.sign());
-                let other_match = |other: PieceId<StandardPiece>| {
-                    if other.matches(id)
-                        && other.piece() == StandardPiece::Rook
-                        && history.get_slice(id).is_none()
-                        && history.get_slice(&other).is_none()
-                    {
-                        return Some((Move::new(2, 0, 1), CanCapture::None));
+                let mut idx = op.right(id.sign());
+                while let Some(other_id) = board.get_id(&idx) {
+                    if other_id.is_none() {
+                        idx = idx.right(id.sign());
+                        continue;
                     }
-                    return None;
-                };
-                if board.get_id_not_none(&idx1).is_none() && board.get_id_not_none(&idx2).is_none()
-                {
-                    return board
-                        .get_id_not_none(&idx3)
-                        .and_then(other_match)
-                        .or_else(|| board.get_id_not_none(&idx4).and_then(other_match));
+                    return Self::castle_check(id, history, 2, other_id, StandardPiece::Rook);
                 }
                 return None;
             })
         }),
     ];
+
+    fn castle_check<'a, P>(
+        id: &PieceId<StandardPiece>,
+        history: &BoardHistory,
+        distance: isize,
+        other: PieceId<StandardPiece>,
+        piece: StandardPiece,
+    ) -> Option<(Move, CanCapture<'a, P>)> {
+        if other.matches(id)
+            && other.piece() == piece
+            && history.get_slice(id).is_none()
+            && history.get_slice(&other).is_none()
+        {
+            return Some((Move::new(distance, 0, 1), CanCapture::None));
+        }
+        return None;
+    }
 
     fn valid_moves(
         &self,

@@ -163,18 +163,6 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
         return Some(BoardHelper::<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE>::convert_to_piece_id(id));
     }
 
-    fn get_id_not_none(&self, pos: &PiecePos<P>) -> Option<PieceId<P>> {
-        match self.get_id(pos) {
-            Some(id) => {
-                if !id.is_none() {
-                    return Some(id);
-                }
-                return None;
-            }
-            None => None,
-        }
-    }
-
     fn get_pos(&self, id: &PieceId<P>) -> Option<PiecePos<P>> {
         if id.is_none() {
             return None;

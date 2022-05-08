@@ -31,10 +31,8 @@ impl<
     }
 
     pub fn move_piece(&mut self, id: &PieceId<P>, square: usize) {
-        let pos = &PiecePos(square, &self.board);
-        let existing_piece = self.board.get_pos(id);
-        if existing_piece.is_some() {
-            let old_pos = existing_piece.unwrap();
+        if let Some(old_pos) = self.board.get_pos(id) {
+            let pos = &PiecePos(square, &self.board);
             let old_square = old_pos.u();
             self.history.push(id, pos);
             self.board.set_square(&PieceId::default(), old_square);
@@ -43,9 +41,7 @@ impl<
     }
 
     pub fn move_piece_relative(&mut self, id: &PieceId<P>, distance: usize) {
-        let existing_piece = self.board.get_pos(id);
-        if existing_piece.is_some() {
-            let old_pos = existing_piece.unwrap();
+        if let Some(old_pos) = self.board.get_pos(id) {
             let old_square = old_pos.u();
             let relative_pos = old_pos.offset(id.sign(), distance);
             let relative_square = relative_pos.u();
