@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'rust_exp'",
+            "name": "Debug executable 'chess'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=rust_exp",
-                    "--package=rust_exp"
+                    "--bin=chess",
+                    "--package=chess"
                 ],
                 "filter": {
-                    "name": "rust_exp",
+                    "name": "chess",
                     "kind": "bin"
                 }
             },
@@ -25,16 +25,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'rust_exp'",
+            "name": "Debug unit tests in executable 'chess'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=rust_exp",
-                    "--package=rust_exp"
+                    "--bin=chess",
+                    "--package=chess"
                 ],
                 "filter": {
-                    "name": "rust_exp",
+                    "name": "chess",
                     "kind": "bin"
                 }
             },
