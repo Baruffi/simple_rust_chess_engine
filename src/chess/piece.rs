@@ -3,15 +3,20 @@ use crate::chess::{
     movement::CanMove,
 };
 
-pub trait Piece: Copy + std::convert::From<isize> + std::convert::Into<isize> + PartialEq {
+use super::movement::CaptureCalculator;
+
+pub trait Piece:
+    Copy + std::convert::From<isize> + std::convert::Into<isize> + PartialEq + Eq + std::hash::Hash
+{
     fn none() -> Self;
 }
 
 pub trait PieceSet<'a> {
     type PieceType: Piece;
-    fn moveset(&self, piece: &Self::PieceType) -> Option<&[CanMove<'a, Self::PieceType>]>;
+    fn moveset(&self, piece: &Self::PieceType) -> &[CanMove<'a, Self::PieceType>];
     fn valid_slice(
         &self,
+        capture_calculator: &dyn CaptureCalculator<Self::PieceType>,
         piece_id: &PieceId<Self::PieceType>,
         board: &dyn Board<PieceType = Self::PieceType>,
         history: &BoardHistory,

@@ -1,17 +1,19 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use crate::chess::{
-    piece::{Piece, PieceId, PiecePos},
-    standard::board::StandardBoard,
-};
+use crate::chess::piece::{Piece, PieceId, PiecePos};
+
+use super::piece::Sign;
 
 pub trait Board {
     type PieceType;
     fn get_row_size(&self) -> usize;
     fn get_col_size(&self) -> usize;
     fn get_board_size(&self) -> usize;
+    fn get_all_pieces(&self) -> HashSet<Self::PieceType>;
+    fn get_all_versions(&self, piece: Self::PieceType, sign: Sign) -> Vec<usize>;
     fn get_id(&self, pos: &PiecePos<Self::PieceType>) -> Option<PieceId<Self::PieceType>>;
     fn get_pos(&self, id: &PieceId<Self::PieceType>) -> Option<PiecePos<Self::PieceType>>;
+    fn get_slice(&self) -> BoardSlice;
     fn set_square(&mut self, id: &PieceId<Self::PieceType>, square: usize);
     fn clear(&mut self);
 }
@@ -57,27 +59,29 @@ impl BoardSlice {
         }
     }
 
-    pub fn inner(&self) -> &Vec<usize> {
-        &self.0
+    pub fn last(&self) -> Option<&usize> {
+        self.0.last()
     }
 
     pub fn push(&mut self, pos: usize) {
         self.0.push(pos);
     }
 
-    pub fn visualize<
-        const T_ROW_SIZE: usize,
-        const T_COL_SIZE: usize,
-        const T_BOARD_SIZE: usize,
-        P: Piece,
-    >(
-        &self,
-        fill: isize,
-    ) -> StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE, P> {
-        let mut visual = StandardBoard::new([0; T_BOARD_SIZE]);
+    pub fn add<P: Piece>(&self, amount: isize, board: &mut dyn Board<PieceType = P>) {
         for v in &self.0 {
-            visual.set_square(&PieceId(fill.into(), fill.into(), 0), *v);
+            if let Some(existing_piece) = board.get_id(&PiecePos(*v, board)) {
+                let real_fill = existing_piece.i() + amount;
+                board.set_square(&PieceId(real_fill.into(), real_fill.into(), 0), *v);
+            }
         }
-        return visual;
+    }
+
+    pub fn subtract<P: Piece>(&self, amount: isize, board: &mut dyn Board<PieceType = P>) {
+        for v in &self.0 {
+            if let Some(existing_piece) = board.get_id(&PiecePos(*v, board)) {
+                let real_fill = existing_piece.i() - amount;
+                board.set_square(&PieceId(real_fill.into(), real_fill.into(), 0), *v);
+            }
+        }
     }
 }

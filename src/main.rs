@@ -30,6 +30,8 @@ fn main() {
     let my_queen = &PieceId(StandardPiece::Queen, Sign::Positive, 0);
     let my_king = &PieceId(StandardPiece::King, Sign::Positive, 0);
 
+    game.calculate_presence();
+    game.visualize_presence();
     game.visualize_board();
     game.visualize_moves(my_pawn);
     game.move_piece_relative(my_pawn, 16);
@@ -59,4 +61,6 @@ fn main() {
     game.visualize_moves(my_rook);
     game.move_piece_relative(my_rook, 1);
     game.visualize_board();
+    game.calculate_presence();
+    game.visualize_presence();
 }

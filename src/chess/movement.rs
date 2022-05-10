@@ -3,6 +3,68 @@ use crate::chess::{
     piece::{Piece, PieceId, PiecePos},
 };
 
+pub trait CaptureCalculator<P: Piece> {
+    fn calculate(
+        &self,
+        can_capture: &CanCapture<'_, P>,
+        id: &PieceId<P>,
+        other: &PieceId<P>,
+        captured: &mut usize,
+    ) -> bool;
+}
+
+pub struct MobilityCalculator;
+
+impl<P: Piece> CaptureCalculator<P> for MobilityCalculator {
+    fn calculate(
+        &self,
+        can_capture: &CanCapture<'_, P>,
+        id: &PieceId<P>,
+        other: &PieceId<P>,
+        captured: &mut usize,
+    ) -> bool {
+        match can_capture {
+            CanCapture::None => other.is_none(),
+            CanCapture::Matching(max) => {
+                other.is_none() || (id.matches(other) && *captured < *max && (*captured += 1) == ())
+            }
+            CanCapture::Opposing(max) => {
+                other.is_none() || (id.opposes(other) && *captured < *max && (*captured += 1) == ())
+            }
+            CanCapture::All(max) => other.is_none() || *captured < *max && (*captured += 1) == (),
+            CanCapture::MatchingAnd(s) => {
+                id.matches(other) && s(id, other, *captured) && (*captured += 1) == ()
+            }
+            CanCapture::OpposingAnd(s) => {
+                id.opposes(other) && s(id, other, *captured) && (*captured += 1) == ()
+            }
+            CanCapture::AllAnd(s) => s(id, other, *captured) && (*captured += 1) == (),
+        }
+    }
+}
+
+pub struct PresenceCalculator;
+
+impl<P: Piece> CaptureCalculator<P> for PresenceCalculator {
+    fn calculate(
+        &self,
+        can_capture: &CanCapture<'_, P>,
+        id: &PieceId<P>,
+        other: &PieceId<P>,
+        captured: &mut usize,
+    ) -> bool {
+        match can_capture {
+            CanCapture::None => false,
+            CanCapture::Matching(max) | CanCapture::Opposing(max) | CanCapture::All(max) => {
+                other.is_none() || (*captured < *max && (*captured += 1) == ())
+            }
+            CanCapture::MatchingAnd(s) | CanCapture::OpposingAnd(s) | CanCapture::AllAnd(s) => {
+                s(id, other, *captured) && (*captured += 1) == ()
+            }
+        }
+    }
+}
+
 struct MoveStep {
     x: isize,
     y: isize,
@@ -26,6 +88,7 @@ impl Move {
 
     pub fn calculate<P: Piece>(
         &self,
+        capture_calculator: &dyn CaptureCalculator<P>,
         piece_id: &PieceId<P>,
         piece_pos: &PiecePos<P>,
         can_capture: &CanCapture<P>,
@@ -38,22 +101,18 @@ impl Move {
         let mut my = py as isize + y;
         let mut iters: usize = 0;
         let mut captured: usize = 0;
-
         while iters < self.max_steps && PiecePos::is_inbounds(mx, my, board) {
             let from_xy = PiecePos::from((mx, my, board));
-            match board.get_id(&from_xy) {
-                Some(p) => {
-                    if !can_capture.check(piece_id, &p, &mut captured) {
-                        break;
-                    }
+            if let Some(other) = board.get_id(&from_xy) {
+                if capture_calculator.calculate(can_capture, piece_id, &other, &mut captured) {
+                    calculated.push(from_xy.u());
+                    mx += x;
+                    my += y;
+                    iters += 1;
+                    continue;
                 }
-                None => (),
-            };
-            calculated.push(from_xy.u());
-
-            mx += x;
-            my += y;
-            iters += 1;
+            }
+            break;
         }
         calculated
     }
@@ -63,24 +122,10 @@ pub enum CanCapture<'a, P> {
     None,
     Matching(usize),
     Opposing(usize),
-    Specific(&'a dyn Fn(&PieceId<P>, &PieceId<P>, &mut usize) -> bool),
-    All,
-}
-
-impl<'a, P: Piece> CanCapture<'a, P> {
-    pub fn check(&self, id: &PieceId<P>, other: &PieceId<P>, captured: &mut usize) -> bool {
-        match self {
-            CanCapture::None => other.is_none(),
-            CanCapture::Matching(max) => {
-                other.is_none() || (*captured < *max && (*captured += 1) == () && id.matches(other))
-            }
-            CanCapture::Opposing(max) => {
-                other.is_none() || (*captured < *max && (*captured += 1) == () && id.opposes(other))
-            }
-            CanCapture::Specific(s) => s(id, other, captured),
-            CanCapture::All => true,
-        }
-    }
+    All(usize),
+    MatchingAnd(&'a dyn Fn(&PieceId<P>, &PieceId<P>, usize) -> bool),
+    OpposingAnd(&'a dyn Fn(&PieceId<P>, &PieceId<P>, usize) -> bool),
+    AllAnd(&'a dyn Fn(&PieceId<P>, &PieceId<P>, usize) -> bool),
 }
 
 pub enum CanMove<'a, P> {

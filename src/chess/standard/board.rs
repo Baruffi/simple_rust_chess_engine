@@ -1,8 +1,11 @@
 use crate::chess::{
-    board::Board,
-    piece::{Piece, PieceId, PiecePos},
+    board::{Board, BoardSlice},
+    piece::{Piece, PieceId, PiecePos, Sign},
 };
-use std::{collections::HashMap, marker::PhantomData};
+use std::{
+    collections::{HashMap, HashSet},
+    marker::PhantomData,
+};
 
 pub struct BoardHelper<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize>
 {
@@ -154,9 +157,21 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
         return T_BOARD_SIZE;
     }
 
+    fn get_all_pieces(&self) -> HashSet<Self::PieceType> {
+        let mut all_ids = HashSet::new();
+        for (i, _) in &self.helper.positions_per_version {
+            all_ids.insert(P::from(*i));
+        }
+        all_ids
+    }
+
+    fn get_all_versions(&self, piece: P, sign: Sign) -> Vec<usize> {
+        (0..self.helper.positions_per_version[&(piece.into() * sign)].len()).collect()
+    }
+
     fn get_id(&self, pos: &PiecePos<P>) -> Option<PieceId<P>> {
         let u = pos.u();
-        if u > T_BOARD_SIZE {
+        if u >= T_BOARD_SIZE {
             return None;
         }
         let id = self.helper.get_id(u);
@@ -169,6 +184,14 @@ impl<const T_ROW_SIZE: usize, const T_COL_SIZE: usize, const T_BOARD_SIZE: usize
         }
         let id = BoardHelper::<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE>::convert_to_id(id);
         return Some(PiecePos(self.helper.get_pos(id), self));
+    }
+
+    fn get_slice(&self) -> BoardSlice {
+        BoardSlice(
+            (0..T_BOARD_SIZE)
+                .filter(|v| self.helper.ids_per_position[*v] != 0)
+                .collect(),
+        )
     }
 
     fn set_square(&mut self, id: &PieceId<P>, square: usize) {

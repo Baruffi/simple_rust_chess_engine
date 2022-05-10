@@ -2,11 +2,11 @@ use std::ops::Neg;
 
 use crate::chess::{
     board::{Board, BoardHistory, BoardSlice},
-    movement::{CanCapture, CanMove, Move},
+    movement::{CanCapture, CanMove, CaptureCalculator, Move},
     piece::{Piece, PieceId, PieceSet},
 };
 
-#[derive(PartialEq, PartialOrd, Clone, Copy)]
+#[derive(PartialEq, PartialOrd, Clone, Copy, Eq, Hash)]
 pub enum StandardPiece {
     None,
     Pawn,
@@ -15,11 +15,12 @@ pub enum StandardPiece {
     Rook,
     Queen,
     King,
+    Unknown(usize),
 }
 
 impl From<StandardPiece> for isize {
-    fn from(i: StandardPiece) -> Self {
-        match i {
+    fn from(p: StandardPiece) -> Self {
+        match p {
             StandardPiece::None => 0,
             StandardPiece::Pawn => 1,
             StandardPiece::Knight => 2,
@@ -27,6 +28,7 @@ impl From<StandardPiece> for isize {
             StandardPiece::Rook => 4,
             StandardPiece::Queen => 5,
             StandardPiece::King => 6,
+            StandardPiece::Unknown(u) => u as isize,
         }
     }
 }
@@ -41,7 +43,7 @@ impl From<isize> for StandardPiece {
             4 => Self::Rook,
             5 => Self::Queen,
             6 => Self::King,
-            _ => panic!("unknown piece {}", i.abs()),
+            u => Self::Unknown(u as usize),
         }
     }
 }
@@ -55,13 +57,12 @@ impl Piece for StandardPiece {
 pub struct StandardPieceSet;
 
 impl StandardPieceSet {
-    const PAWN_MOVESET: [CanMove<'static, StandardPiece>; 6] = [
-        CanMove::Free(Move::new(0, 1, 1), CanCapture::None),
+    const PAWN_MOVESET: [CanMove<'static, StandardPiece>; 5] = [
         CanMove::Conditional(&|id, _, history| {
             if history.get_slice(id).is_none() {
                 return Some((Move::new(0, 1, 2), CanCapture::None));
             }
-            return None;
+            return Some((Move::new(0, 1, 1), CanCapture::None));
         }),
         CanMove::Conditional(&|id, board, _| {
             board.get_pos(id).and_then(|op| {
@@ -91,7 +92,7 @@ impl StandardPieceSet {
                 board.get_id(&op_left).and_then(|other| {
                     if other.opposes(id) && other.piece() == StandardPiece::Pawn {
                         return history.get_slice(&other).and_then(|prev| {
-                            prev.inner().last().and_then(|last| {
+                            prev.last().and_then(|last| {
                                 if last == &op_left.bottom(other.sign()).bottom(other.sign()).u() {
                                     return Some((Move::new(-1, 1, 1), CanCapture::None));
                                 } else {
@@ -110,7 +111,7 @@ impl StandardPieceSet {
                 board.get_id(&op_right).and_then(|other| {
                     if other.opposes(id) && other.piece() == StandardPiece::Pawn {
                         return history.get_slice(&other).and_then(|prev| {
-                            prev.inner().last().and_then(|last| {
+                            prev.last().and_then(|last| {
                                 if last == &op_right.bottom(other.sign()).bottom(other.sign()).u() {
                                     return Some((Move::new(1, 1, 1), CanCapture::None));
                                 } else {
@@ -250,18 +251,19 @@ impl StandardPieceSet {
 
     fn valid_moves(
         &self,
+        capture_calculator: &dyn CaptureCalculator<StandardPiece>,
         piece_id: &PieceId<StandardPiece>,
         board: &dyn Board<PieceType = StandardPiece>,
         history: &BoardHistory,
     ) -> Option<Vec<usize>> {
         let mut valid = Vec::new();
         let pos = board.get_pos(piece_id)?;
-        let moveset = self.moveset(&piece_id.piece())?;
+        let moveset = self.moveset(&piece_id.piece());
         for can_move in moveset {
             let mut move_op = match can_move {
-                CanMove::Free(m, c) => m.calculate(piece_id, &pos, c, board),
+                CanMove::Free(m, c) => m.calculate(capture_calculator, piece_id, &pos, c, board),
                 CanMove::Conditional(c) => match c(piece_id, board, history) {
-                    Some((m, c)) => m.calculate(piece_id, &pos, &c, board),
+                    Some((m, c)) => m.calculate(capture_calculator, piece_id, &pos, &c, board),
                     None => Vec::new(),
                 },
             };
@@ -274,7 +276,7 @@ impl StandardPieceSet {
 impl PieceSet<'static> for StandardPieceSet {
     type PieceType = StandardPiece;
 
-    fn moveset(&self, piece: &StandardPiece) -> Option<&[CanMove<'static, Self::PieceType>]> {
+    fn moveset(&self, piece: &StandardPiece) -> &[CanMove<'static, Self::PieceType>] {
         let moveset = match piece {
             StandardPiece::None => &[],
             StandardPiece::Pawn => &Self::PAWN_MOVESET[..],
@@ -283,16 +285,18 @@ impl PieceSet<'static> for StandardPieceSet {
             StandardPiece::Rook => &Self::ROOK_MOVESET[..],
             StandardPiece::Queen => &Self::QUEEN_MOVESET[..],
             StandardPiece::King => &Self::KING_MOVESET[..],
+            StandardPiece::Unknown(_) => &[],
         };
-        return Some(moveset);
+        return moveset;
     }
 
     fn valid_slice(
         &self,
+        capture_calculator: &dyn CaptureCalculator<StandardPiece>,
         piece_id: &PieceId<StandardPiece>,
         board: &dyn Board<PieceType = StandardPiece>,
         history: &BoardHistory,
     ) -> BoardSlice {
-        BoardSlice::new(self.valid_moves(piece_id, board, history))
+        BoardSlice::new(self.valid_moves(capture_calculator, piece_id, board, history))
     }
 }
