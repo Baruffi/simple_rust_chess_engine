@@ -71,7 +71,7 @@ impl<
         for piece in self.board.get_all_pieces() {
             for version in self.board.get_all_versions(piece, Sign::Positive) {
                 let positive_slice = self.piece_set.valid_slice(
-                    &PresenceCalculator,
+                    &mut PresenceCalculator::new(),
                     &PieceId(piece, Sign::Positive, version),
                     &self.board,
                     &self.history,
@@ -81,7 +81,7 @@ impl<
             }
             for version in self.board.get_all_versions(piece, Sign::Negative) {
                 let negative_slice = self.piece_set.valid_slice(
-                    &PresenceCalculator,
+                    &mut PresenceCalculator::new(),
                     &PieceId(piece, Sign::Negative, version),
                     &self.board,
                     &self.history,
@@ -92,9 +92,20 @@ impl<
         }
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear_presence(&mut self) {
+        self.positive_board_presence.clear();
+        self.negative_board_presence.clear();
+        self.overall_board_presence.clear();
+    }
+
+    pub fn clear_state(&mut self) {
         self.board.clear();
         self.history.clear();
+    }
+
+    pub fn clear_all(&mut self) {
+        self.clear_presence();
+        self.clear_state();
     }
 
     fn format_row(row: &[isize; T_ROW_SIZE]) -> String {
@@ -180,15 +191,17 @@ impl<
     }
 
     pub fn visualize_presence(&self) {
+        Self::evaluate_board(&self.positive_board_presence);
+        Self::evaluate_board(&self.negative_board_presence);
         Self::evaluate_board(&self.overall_board_presence);
     }
 
     pub fn visualize_moves(&self, id: &PieceId<P>) {
         let mut mirror: StandardBoard<T_ROW_SIZE, T_COL_SIZE, T_BOARD_SIZE, P> =
             StandardBoard::new([0; T_BOARD_SIZE]);
-        let slice = self
-            .piece_set
-            .valid_slice(&MobilityCalculator, id, &self.board, &self.history);
+        let slice =
+            self.piece_set
+                .valid_slice(&mut MobilityCalculator, id, &self.board, &self.history);
         slice.add(id.i(), &mut mirror);
         Self::print_board(&mirror);
     }

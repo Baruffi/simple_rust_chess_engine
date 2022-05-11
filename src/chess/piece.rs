@@ -3,7 +3,7 @@ use crate::chess::{
     movement::CanMove,
 };
 
-use super::movement::CaptureCalculator;
+use super::movement::CaptureInterpreter;
 
 pub trait Piece:
     Copy + std::convert::From<isize> + std::convert::Into<isize> + PartialEq + Eq + std::hash::Hash
@@ -16,7 +16,7 @@ pub trait PieceSet<'a> {
     fn moveset(&self, piece: &Self::PieceType) -> &[CanMove<'a, Self::PieceType>];
     fn valid_slice(
         &self,
-        capture_calculator: &dyn CaptureCalculator<Self::PieceType>,
+        capture_interpreter: &mut dyn CaptureInterpreter,
         piece_id: &PieceId<Self::PieceType>,
         board: &dyn Board<PieceType = Self::PieceType>,
         history: &BoardHistory,

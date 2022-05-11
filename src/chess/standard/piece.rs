@@ -2,7 +2,7 @@ use std::ops::Neg;
 
 use crate::chess::{
     board::{Board, BoardHistory, BoardSlice},
-    movement::{CanCapture, CanMove, CaptureCalculator, Move},
+    movement::{CalculationResult, CanCapture, CanMove, CaptureInterpreter, Move},
     piece::{Piece, PieceId, PieceSet},
 };
 
@@ -64,28 +64,24 @@ impl StandardPieceSet {
             }
             return Some((Move::new(0, 1, 1), CanCapture::None));
         }),
-        CanMove::Conditional(&|id, board, _| {
-            board.get_pos(id).and_then(|op| {
-                let idx = op.topleft(id.sign());
-                board.get_id(&idx).and_then(|other| {
-                    if other.opposes(id) {
-                        return Some((Move::new(-1, 1, 1), CanCapture::Opposing(1)));
-                    }
-                    return None;
-                })
-            })
-        }),
-        CanMove::Conditional(&|id, board, _| {
-            board.get_pos(id).and_then(|op| {
-                let idx = op.topright(id.sign());
-                board.get_id(&idx).and_then(|other| {
-                    if other.opposes(id) {
-                        return Some((Move::new(1, 1, 1), CanCapture::Opposing(1)));
-                    }
-                    return None;
-                })
-            })
-        }),
+        CanMove::Free(
+            Move::new(-1, 1, 1),
+            CanCapture::Specific(&|pawn, other, _| {
+                if pawn.opposes(other) {
+                    return CalculationResult::Captured(1);
+                }
+                return CalculationResult::Blocked(1);
+            }),
+        ),
+        CanMove::Free(
+            Move::new(1, 1, 1),
+            CanCapture::Specific(&|pawn, other, _| {
+                if pawn.opposes(other) {
+                    return CalculationResult::Captured(1);
+                }
+                return CalculationResult::Blocked(1);
+            }),
+        ),
         CanMove::Conditional(&|id, board, history| {
             board.get_pos(id).and_then(|op| {
                 let op_left = op.left(id.sign());
@@ -232,7 +228,7 @@ impl StandardPieceSet {
         }),
     ];
 
-    fn castle_check<'a, P>(
+    fn castle_check<'a, P: Piece>(
         id: &PieceId<StandardPiece>,
         history: &BoardHistory,
         distance: isize,
@@ -251,7 +247,7 @@ impl StandardPieceSet {
 
     fn valid_moves(
         &self,
-        capture_calculator: &dyn CaptureCalculator<StandardPiece>,
+        capture_interpreter: &mut dyn CaptureInterpreter,
         piece_id: &PieceId<StandardPiece>,
         board: &dyn Board<PieceType = StandardPiece>,
         history: &BoardHistory,
@@ -261,9 +257,9 @@ impl StandardPieceSet {
         let moveset = self.moveset(&piece_id.piece());
         for can_move in moveset {
             let mut move_op = match can_move {
-                CanMove::Free(m, c) => m.calculate(capture_calculator, piece_id, &pos, c, board),
+                CanMove::Free(m, c) => m.calculate(capture_interpreter, piece_id, &pos, c, board),
                 CanMove::Conditional(c) => match c(piece_id, board, history) {
-                    Some((m, c)) => m.calculate(capture_calculator, piece_id, &pos, &c, board),
+                    Some((m, c)) => m.calculate(capture_interpreter, piece_id, &pos, &c, board),
                     None => Vec::new(),
                 },
             };
@@ -292,11 +288,11 @@ impl PieceSet<'static> for StandardPieceSet {
 
     fn valid_slice(
         &self,
-        capture_calculator: &dyn CaptureCalculator<StandardPiece>,
+        capture_interpreter: &mut dyn CaptureInterpreter,
         piece_id: &PieceId<StandardPiece>,
         board: &dyn Board<PieceType = StandardPiece>,
         history: &BoardHistory,
     ) -> BoardSlice {
-        BoardSlice::new(self.valid_moves(capture_calculator, piece_id, board, history))
+        BoardSlice::new(self.valid_moves(capture_interpreter, piece_id, board, history))
     }
 }
